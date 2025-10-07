@@ -1,0 +1,463 @@
+from glob import glob # glob is used to find files matching a pattern
+
+# Configs used for the analysis
+configfile: "analysis_config.yml"
+
+# all targets
+rule all:
+    input:
+        # merged data and MC files
+        "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2Lmumu_data.root",
+        "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2Lmumu_MC.root",
+        "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2LJpsi_MC.root",
+        "/ceph/users/pmachnik/Lambdab_Run3/merged/B2JpsiKs_MC.root",
+        # BDT training files
+        "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/signal_ll.root",
+        "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/signal_dd.root",
+        "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/background_ll.root",
+        "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/background_dd.root",
+        # BDT training results
+        expand("TMVA_N{trees}_Sh{learning_rate}_D{depth}_alldata_ll.root", trees=config["ll_trees"], learning_rate=config["ll_learning_rate"], depth=config["ll_depth"]),
+        expand("TMVA_N{trees}_Sh{learning_rate}_D{depth}_alldata_dd.root", trees=config["dd_trees"], learning_rate=config["dd_learning_rate"], depth=config["dd_depth"]),
+        # BDT preselection
+        expand("/ceph/users/pmachnik/Lambdab_Run3/BDT_preselection/{sample}_{tracktype}.root", sample=["data", "MC"], tracktype=["ll", "dd"]),
+        # BDT scores
+        expand("/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2Lmumu_{sample}_{tracktype}_BDTG.root", sample=["data", "MC"], tracktype=["ll", "dd"]),
+        expand("/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2LJpsi_{sample}_{tracktype}_BDTG.root", sample=["data", "MC"], tracktype=["ll", "dd"]),
+        expand("/ceph/users/pmachnik/Lambdab_Run3/BDT/B2JpsiKs_MC_{tracktype}_BDTG.root", tracktype=["ll", "dd"]),
+        # FOM control files
+        expand("/ceph/users/pmachnik/Lambdab_Run3/control_files/.done_FOM_{tracktype}", tracktype=["ll", "dd"]),
+        # Mass fit results
+        expand("../plots/mass_fits/R3/RM_{tracktype}_channel_data.pdf", tracktype=["ll", "dd"]),
+        expand("../plots/mass_fits/R3/RM_{tracktype}_channel_MC.pdf", tracktype=["ll", "dd"]),
+        expand("build/RM_{tracktype}_MC_ws.root", tracktype=["ll", "dd"]),
+        expand("../plots/mass_fits/R3/Jpsi_channel_BDTG_data_{tracktype}.pdf", tracktype=["ll", "dd"]),
+        expand("../plots/mass_fits/R3/Jpsi_channel_data_{tracktype}.pdf", tracktype=["ll", "dd"]),
+
+        # sWeights results
+        expand("/ceph/users/pmachnik/Lambdab_Run3/Jpsi/Jpsi_BDTG_sWeights_{tracktype}.root", tracktype=["ll", "dd"]),
+        expand("/ceph/users/pmachnik/Lambdab_Run3/Jpsi/Jpsi_sWeights_{tracktype}.root", tracktype=["ll", "dd"]),
+
+
+# ============================================================================
+# =========== Merging the data blocks ===========
+# ============================================================================
+
+# merging the data blocks and creating block branch
+rule merge_data_blocks:
+    input:
+        files = glob("/ceph/RD/Lb2Lmumu/2024_data/24c[34]/Hlt2RD_LbToLMuMu_*/Mag*/*.root"),
+        script = "merge.py"
+    output:
+        merged = "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2Lmumu_data.root"
+    threads: 16
+    shell:
+        """
+        echo "Merging data blocks..."
+        python {input.script} --output {output.merged} --input {input.files}
+        echo "Data blocks merged successfully."
+        """
+
+# merging the MC blocks
+rule merge_MC_blocks:
+    input:
+        files = glob("/ceph/RD/Lb2Lmumu/MC/Lb2LMuMu/2024/**/data.root", recursive=True),
+        script = "merge.py"
+    output:
+        merged = "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2Lmumu_MC.root"
+    threads: 16
+    shell:
+        """
+        echo "Merging MC blocks..."
+        python {input.script} --output {output.merged} --input {input.files}
+        echo "MC blocks merged successfully."
+        """
+
+# merging the Jpsi MC blocks
+rule merge_Jpsi_MC_blocks:
+    input:
+        files = glob("/ceph/RD/Lb2Lmumu/MC/Lb2LJpsi/**/data.root", recursive=True),
+        script = "merge.py"
+    output:
+        merged = "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2LJpsi_MC.root"
+    threads: 16
+    shell:
+        """
+        echo "Merging Jpsi MC blocks..."
+        python {input.script} --output {output.merged} --input {input.files}
+        echo "Jpsi MC blocks merged successfully."
+        """
+
+# merging the JpKs MC blocks
+rule merge_JpKs_MC_blocks:
+    input:
+        files = glob("/ceph/RD/Lb2Lmumu/MC/B2JpsiKs/**/data.root", recursive=True),
+        script = "merge.py"
+    output:
+        merged = "/ceph/users/pmachnik/Lambdab_Run3/merged/B2JpsiKs_MC.root"
+    threads: 16
+    shell:
+        """
+        echo "Merging JpKs MC blocks..."
+        python {input.script} --output {output.merged} --input {input.files}
+        echo "JpKs MC blocks merged successfully."
+        """
+
+
+
+# ============================================================================
+# =========== BDT Training and Preprocessing ===========
+# ============================================================================
+
+# creating signal and background data sets
+rule BDT_preprocessing:
+    input:
+        data = "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2Lmumu_data.root",
+        mc = "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2Lmumu_MC.root",
+        script = "BDT/BDT_preprocessing.py"
+    output:
+        signal_ll = "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/signal_ll.root",
+        signal_dd = "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/signal_dd.root",
+        background_ll = "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/background_ll.root",
+        background_dd = "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/background_dd.root"
+    threads: 16
+    shell:
+        """
+        echo "Preprocessing data for BDT training..."
+        python {input.script} --background {input.data} --signal {input.mc} --output_signal_ll {output.signal_ll} --output_signal_dd {output.signal_dd} --output_background_ll {output.background_ll} --output_background_dd {output.background_dd}
+        echo "BDT preprocessing completed."
+        """
+
+# training the BDT
+rule BDT_training:
+    input:
+        signal = "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/signal_{tracktype}.root",
+        background = "/ceph/users/pmachnik/Lambdab_Run3/TMVA_training/background_{tracktype}.root",
+        script = "BDT/TMVA.py",
+    output:
+        "TMVA_N{trees}_Sh{learning_rate}_D{depth}_alldata_{tracktype}.root"
+    threads: 16
+    params:
+        features = lambda wildcards: config[f"{wildcards.tracktype}_features"],
+    shell:
+        """
+        echo "Running TMVA training for {wildcards.tracktype} track type"
+        python {input.script} --input_signal {input.signal} --input_background {input.background} --features {params.features} > TMVA_N{wildcards.trees}_Sh{wildcards.learning_rate}_D{wildcards.depth}_alldata_{wildcards.tracktype}.txt
+        echo "Finished TMVA training for {wildcards.tracktype} track type"
+        """
+
+
+
+# ============================================================================
+# =========== Apply BDT weights ===========
+# ============================================================================
+
+# ponziFOM calculation to determine the optimal BDT cut
+rule ponziFOM:
+    input:
+        file_MC = "/ceph/users/pmachnik/Lambdab_Run3/BDT/MC_{tracktype}_BDTG.root",
+        file_data = "/ceph/users/pmachnik/Lambdab_Run3/BDT/data_{tracktype}_BDTG.root",
+        script = "BDT/FOM.py"
+    output:
+        touch("/ceph/users/pmachnik/Lambdab_Run3/control_files/.done_FOM_{tracktype}"),
+    threads: 8
+    shell:
+        """
+        echo "Running FOM preprocessing for {wildcards.tracktype} track type"
+        python {input.script} --input_MC {input.file_MC} --input_data {input.file_data} --track_type {wildcards.tracktype}
+        echo "Finished FOM preprocessing for {wildcards.tracktype} track type"
+        """
+
+# BDT preselection of the data to calculate BDT scores on RM
+rule BDT_preselection_RM:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2Lmumu_{sample}.root",
+        script = "BDT/BDT_preselection.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab_Run3/BDT_preselection/Lb2Lmumu_{sample}_{tracktype}.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for {wildcards.tracktype} track type on {wildcards.sample} sample"
+        python {input.script} --input {input.files} --output {output} --track_type {wildcards.tracktype} --sample {wildcards.sample}
+        echo "Finished BDT preselection for {wildcards.tracktype} track type on {wildcards.sample} sample"
+        """
+
+# preselection for Jpsi data
+rule BDT_preselection_Jpsi_data:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2Lmumu_data.root",
+        script = "BDT/BDT_preselection_Jpsi.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab_Run3/BDT_preselection/Lb2LJpsi_data_{tracktype}.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for Jpsi channel for {wildcards.tracktype} track type on data sample"
+        python {input.script} --input {input.file} --output {output} --track_type {wildcards.tracktype} --sample Jpsi
+        echo "Finished BDT preselection for Jpsi channel for {wildcards.tracktype} track type on data sample"
+        """
+
+# preselection for Jpsi MC
+rule BDT_preselection_Jpsi_MC:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab_Run3/merged/Lb2LJpsi_MC.root",
+        script = "BDT/BDT_preselection_Jpsi.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab_Run3/BDT_preselection/Lb2LJpsi_MC_{tracktype}.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for Jpsi channel for {wildcards.tracktype} track type on MC sample"
+        python {input.script} --input {input.file} --output {output} --track_type {wildcards.tracktype} --sample JpsiMC
+        echo "Finished BDT preselection for Jpsi channel for {wildcards.tracktype} track type on MC sample"
+        """
+
+# preselection for JpKs MC
+rule BDT_preselection_JpKs_MC:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab_Run3/merged/B2JpsiKs_MC.root",
+        script = "BDT/BDT_preselection_Jpsi.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab_Run3/BDT_preselection/B2JpsiKs_MC_{tracktype}.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for JpKs channel for {wildcards.tracktype} track type on MC sample"
+        python {input.script} --input {input.file} --output {output} --track_type {wildcards.tracktype} --sample JpKsMC
+        echo "Finished BDT preselection for JpKs channel for {wildcards.tracktype} track type on MC sample"
+        """
+
+# Add scores to MC and data files
+rule add_BDT_scores:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab_Run3/BDT_preselection/{decay}_{sample}_{tracktype}.root",
+        control = lambda wildcards: f"TMVA_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_alldata_{wildcards.tracktype}.root",
+        xml = lambda wildcards: f"/home/pmachnik/bachelor_thesis/run3_analysis/dataset_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_{wildcards.tracktype}/weights/TMVAClassification_BDTG.weights.xml"
+    output:
+        "/ceph/users/pmachnik/Lambdab_Run3/BDT/{decay}_{sample}_{tracktype}_BDTG.root"
+    threads: 4
+    shell:
+        """
+        echo "Adding BDT scores for {wildcards.decay} {wildcards.tracktype} track type on {wildcards.sample} sample"
+        make -C tmva-branch-adder/src
+        tmva-branch-adder/src/main {input.file} DecayTree {input.xml} {output} BDTG
+        echo "Finished adding BDT scores for {wildcards.decay} {wildcards.tracktype} track type on {wildcards.sample} sample"
+        """
+
+# adding BDT scores to Jpsi channel
+#rule add_BDT_scores_Jpsi:
+#    input:
+#        file = "/ceph/users/pmachnik/Lambdab_Run3/BDT_preselection/Lb2LJpsi_{sample}_{tracktype}.root",
+#        control = lambda wildcards: f"TMVA_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_alldata_{wildcards.tracktype}.root",
+#        xml = lambda wildcards: f"/home/pmachnik/bachelor_thesis/run3_analysis/dataset_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_{wildcards.tracktype}/weights/TMVAClassification_BDTG.weights.xml"
+#    output:
+#        "/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2LJpsi_{sample}_{tracktype}_BDTG.root"
+#    threads: 4
+#    shell:
+#        """
+#        echo "Adding BDT scores for Lb2LJpsi for {wildcards.tracktype} track type on {wildcards.sample} sample"
+#        make -C tmva-branch-adder/src
+#        tmva-branch-adder/src/main {input.file} DecayTree {input.xml} {output} BDTG
+#        echo "Finished adding BDT scores for Lb2LJpsi for {wildcards.tracktype} track type on {wildcards.sample} sample"
+#        """
+#
+## adding BDT scores to JpKs channel
+#rule add_BDT_scores_JpKs:
+#    input:
+#        file = "/ceph/users/pmachnik/Lambdab_Run3/BDT_preselection/B2JpsiKs_MC_{tracktype}.root",
+#        control = lambda wildcards: f"TMVA_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_alldata_{wildcards.tracktype}.root",
+#        xml = lambda wildcards: f"/home/pmachnik/bachelor_thesis/run3_analysis/dataset_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_{wildcards.tracktype}/weights/TMVAClassification_BDTG.weights.xml"
+#    output:
+#        "/ceph/users/pmachnik/Lambdab_Run3/BDT/B2JpsiKs_MC_{tracktype}_BDTG.root"
+#    threads: 4
+#    shell:
+#        """
+#        echo "Adding BDT scores for B2JpsiKs for {wildcards.tracktype} track type on MC sample"
+#        make -C tmva-branch-adder/src
+#        tmva-branch-adder/src/main {input.file} DecayTree {input.xml} {output} BDTG
+#        echo "Finished adding BDT scores for B2JpsiKs for {wildcards.tracktype} track type on MC sample"
+#        """
+    
+
+
+# ============================================================================
+# =========== RM mass fit ===========
+# ============================================================================
+
+# rule for making the mass fit on the RM MC sample in order to determine the tailparameters of the signal in the RM channel
+rule mass_fit_RM_channel_MC:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2Lmumu_MC_{tracktype}_BDTG.root",
+        script = "mass_fits/mass_fit_RM_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/R3/RM_{tracktype}_channel_MC.pdf",
+        workspace = "build/RM_{tracktype}_MC_ws.root",
+    threads: 4
+    shell:
+        """
+        echo "Running RM MC mass fit for {wildcards.tracktype} track type"
+        python {input.script} --input {input.file} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished RM MC mass fit for {wildcards.tracktype} track type"
+        """
+
+# rule for making the mass fit on the RM data sample
+rule mass_fit_RM_channel_data:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2Lmumu_data_{tracktype}_BDTG.root",
+        workspace_RM = "build/RM_{tracktype}_MC_ws.root",
+        script = "mass_fits/mass_fit_RM_channel_data.py"
+    output:
+        plot = "../plots/mass_fits/R3/RM_{tracktype}_channel_data.pdf",
+        workspace = "build/RM_{tracktype}_data_ws.root",
+    threads: 8
+    shell:
+        """
+        echo "Running RM Data mass fit for {wildcards.tracktype} track type"
+        python {input.script} --input {input.file} --output {output.plot} --RM {input.workspace_RM} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished RM Data mass fit for {wildcards.tracktype} track type"
+        """
+
+# ============================================================================
+# =========== Jpsi Mass fit ===========
+# ============================================================================
+
+# rule for making the mass fit on the JpKs MC sample in order to determine the tailparameters
+rule mass_fit_JpKs_channel_MC:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/BDT/B2JpsiKs_MC_{tracktype}_BDTG.root", 
+        script = "mass_fits/mass_fit_JpKs_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/R3/JpKs_channel_MC_2017_merged_{tracktype}.pdf",
+        workspace = "build/JpKs_MC_{tracktype}_ws.root"
+    threads: 4
+    shell:
+        """
+        echo "Running JpKs MC mass fit for merged 2017 sample for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished JpKs MC mass fit for merged 2017 sample for {wildcards.tracktype} track type"
+        """
+
+
+# rule for making the mass fit on the Jpsi MC sample in order to determine the tailparameters of the signal in the Jpsi channel
+rule mass_fit_Jpsi_channel_MC:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2LJpsi_MC_{tracktype}_BDTG.root",
+        script = "mass_fits/mass_fit_Jpsi_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/R3/Jpsi_channel_MC_{tracktype}.pdf",
+        workspace = "build/Jpsi_MC_{tracktype}_ws.root",
+    threads: 4
+    shell:
+        """
+        echo "Running Jpsi MC mass fit for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished Jpsi MC mass fit for {wildcards.tracktype} track type"
+        """
+
+
+# rule for making the mass fit on the data sample
+rule mass_fit_Jpsi_channel_data:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2LJpsi_data_{tracktype}_BDTG.root",
+        workspace_Jpsi = "build/Jpsi_MC_{tracktype}_ws.root",
+        workspace_JpKs = "../build/JpKs_MC_{tracktype}_ws.root",
+        script = "mass_fits/mass_fit_Jpsi_channel_data.py"
+    output:
+        plot = "../plots/mass_fits/R3/Jpsi_channel_data_{tracktype}.pdf",
+        workspace = "build/Jpsi_data_{tracktype}_ws.root",
+    threads: 8
+    shell:
+        """
+        echo "Running Jpsi Data mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        python {input.script} --input {input.files} --output {output.plot} --Jpsi {input.workspace_Jpsi} --JpKs {input.workspace_JpKs} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished Jpsi Data mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        """
+
+# now the same fits but with BDTG cuts applied
+
+# rule for making the mass fit on the JpKs MC sample in order to determine the tailparameters
+rule mass_fit_JpKs_channel_MC_BDTG:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/BDT/B2JpsiKs_MC_{tracktype}_BDTG.root", 
+        script = "mass_fits/mass_fit_JpKs_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/R3/JpKs_channel_BDTG_MC_2017_merged_{tracktype}.pdf",
+        workspace = "build/JpKs_MC_{tracktype}_ws_BDTG.root"
+    threads: 4
+    shell:
+        """
+        echo "Running JpKs MC mass fit for merged 2017 sample for {wildcards.tracktype} track type with BDTG cuts"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype} --BDTG
+        echo "Finished JpKs MC mass fit for merged 2017 sample for {wildcards.tracktype} track type with BDTG cuts"
+        """
+
+
+# rule for making the mass fit on the Jpsi MC sample in order to determine the tailparameters of the signal in the Jpsi channel
+rule mass_fit_Jpsi_channel_MC_BDTG:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2LJpsi_MC_{tracktype}_BDTG.root",
+        script = "mass_fits/mass_fit_Jpsi_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/R3/Jpsi_channel_BDTG_MC_{tracktype}.pdf",
+        workspace = "build/Jpsi_MC_{tracktype}_ws_BDTG.root",
+    threads: 4
+    shell:
+        """
+        echo "Running Jpsi MC mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype} --BDTG
+        echo "Finished Jpsi MC mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        """
+
+
+# rule for making the mass fit on the data sample
+rule mass_fit_Jpsi_channel_data_BDTG:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/BDT/Lb2LJpsi_data_{tracktype}_BDTG.root",
+        workspace_Jpsi = "build/Jpsi_MC_{tracktype}_ws_BDTG.root",
+        workspace_JpKs = "../build/JpKs_MC_{tracktype}_ws_BDTG.root",
+        script = "mass_fits/mass_fit_Jpsi_channel_data.py"
+    output:
+        plot = "../plots/mass_fits/R3/Jpsi_channel_BDTG_data_{tracktype}.pdf",
+        workspace = "build/Jpsi_data_{tracktype}_BDTG_ws.root",
+    threads: 8
+    shell:
+        """
+        echo "Running Jpsi Data mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        python {input.script} --input {input.files} --output {output.plot} --Jpsi {input.workspace_Jpsi} --JpKs {input.workspace_JpKs} --workspace {output.workspace} --track_type {wildcards.tracktype} --BDTG
+        echo "Finished Jpsi Data mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        """
+
+# ============================================================================
+# =========== sWeights computation ===========
+# ============================================================================
+
+# rule for computing the sWeights for the Jpsi channel
+rule sweights_Jpsi_channel_BDTG:
+    input:
+        workspace = "build/Jpsi_data_{tracktype}_BDTG_ws.root",
+        script = "weights/sWeights_Jpsi.py"
+    output:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/Jpsi/Jpsi_BDTG_sWeights_{tracktype}.root"
+    threads: 4
+    shell:
+        """
+        echo "Running sWeights computation for Jpsi channel for {wildcards.tracktype} track type with BDTG cuts"
+        python {input.script} --workspace {input.workspace} --output {output.files} --track_type {wildcards.tracktype}
+        echo "Finished sWeights computation for Jpsi channel for {wildcards.tracktype} track type with BDTG cuts"
+        """
+
+# rule for computing the sWeights for the Jpsi channel
+rule sweights_Jpsi_channel:
+    input:
+        workspace = "build/Jpsi_data_{tracktype}_ws.root",
+        script = "weights/sWeights_Jpsi.py"
+    output:
+        files = "/ceph/users/pmachnik/Lambdab_Run3/Jpsi/Jpsi_sWeights_{tracktype}.root"
+    threads: 4
+    shell:
+        """
+        echo "Running sWeights computation for Jpsi channel for {wildcards.tracktype} track type"
+        python {input.script} --workspace {input.workspace} --output {output.files} --track_type {wildcards.tracktype}
+        echo "Finished sWeights computation for Jpsi channel for {wildcards.tracktype} track type"
+        """

@@ -1,0 +1,76 @@
+# some Run2 specific filter
+trigger_R2: "(L1_L0MuonDecision_TOS || L2_L0MuonDecision_TOS || Jpsi_L0DiMuonDecision_TOS) && (Lambdab_Hlt1TrackMVADecision_TOS || Lambdab_Hlt1TwoTrackMVADecision_TOS || Lambdab_Hlt1TrackMuonMVADecision_TOS) && (Lambdab_Hlt2Topo2BodyDecision_TOS || Lambdab_Hlt2TopoMu2BodyDecision_TOS || Lambdab_Hlt2TopoMuMu2BodyDecision_TOS  || Lambdab_Hlt2Topo3BodyDecision_TOS || Lambdab_Hlt2TopoMu3BodyDecision_TOS || Lambdab_Hlt2TopoMuMu3BodyDecision_TOS || Lambdab_Hlt2DiMuonDetachedDecision_TOS || Lambdab_Hlt2DiMuonDetachedHeavyDecision_TOS)"
+preselection_R2: "(L1_hasMuon==1 && L2_hasMuon==1 && L1_hasRich==1 && L2_hasRich==1 && L1_PT>800 && L2_PT>800 && L1_P>3000 && L2_P>3000 && L1_InAccMuon && L2_InAccMuon) && Lambdab_LOKI_DTF_CHI2NDOF>0 && (L1_ProbNNmu>0.1 && L2_ProbNNmu>0.1) && (abs(Lambda_M-1116)<8) && (Lambda_TAU>0 && Lambda_TAU<2) && Lambda_DIRA_OWNPV>0 && Lambda_FDCHI2_ORIVX>0 && (Lambda_ENDVERTEX_Z>0 && Lambda_ENDVERTEX_Z<2320)"
+preselection_corr_R2: "(L1_hasMuon==1 && L2_hasMuon==1 && L1_hasRich==1 && L2_hasRich==1 && L1_PT>800 && L2_PT>800 && L1_P>3000 && L2_P>3000 && L1_InAccMuon && L2_InAccMuon) && Lambdab_LOKI_DTF_CHI2NDOF>0 && (L1_ProbNNmu_pidcorr_default>0.1 && L2_ProbNNmu_pidcorr_default>0.1) && (abs(Lambda_M-1116)<8) && (Lambda_TAU>0 && Lambda_TAU<2) && Lambda_DIRA_OWNPV>0 && Lambda_FDCHI2_ORIVX>0 && (Lambda_ENDVERTEX_Z>0 && Lambda_ENDVERTEX_Z<2320)"
+ll_R2: "Pion_TRACK_Type == 3 && Proton_TRACK_Type == 3"
+dd_R2: "Pion_TRACK_Type == 5 && Proton_TRACK_Type == 5"
+
+
+# filter
+trigger: "(Lambdab_Hlt1TrackMVADecision_TOS || Lambdab_Hlt1TwoTrackMVADecision_TOS || Lambdab_Hlt1TrackMuonMVADecision_TOS)"
+truth_matching_rd: "Lambdab_BKGCAT == 10 || Lambdab_BKGCAT == 50"
+preselection: "L1_PPHASRICH ==1 && L2_PPHASRICH && L1_PPHASMUONINFO ==1 && L2_PPHASMUONINFO ==1 &&(L1_PT>800 && L2_PT>800 && L1_P>3000 && L2_P>3000 && L1_INMUON && L2_INMUON) && Lambdab_DTF_Lambda_CHI2DOF>0 && (L2_PROBNN_MU>0.1 && L2_PROBNN_MU>0.1) && (abs(Lambda_M-1116)<8) && (Lambda_BPVLTIME>0 && Lambda_BPVLTIME<2) && Lambda_BPVDIRA > 0  &&(Lambda_END_VZ>0 && Lambda_END_VZ<2320)"
+truth_matching_Jpsi: "Lambdab_BKGCAT == 0 || Lambdab_BKGCAT == 50"
+#truth_matching_JpKs: "abs(Lambda_TRUEID)==310 && abs(Lambda_MC_MOTHER_ID)==511 && abs(Jpsi_MC_MOTHER_ID)==511 && abs(Lambdab_TRUEID)==511"
+truth_matching_JpKs: "Lambdab_BKGCAT == 70 || Lambdab_BKGCAT == 80"
+Jpsi: "(abs(Jpsi_M-3096)<100)"
+fit_range: "(Lambdab_DTF_LambdaJpsi_PV_M > 5300 && Lambdab_DTF_LambdaJpsi_PV_M < 5940)"
+fit_range_RM: "(Lambdab_DTF_Lambda_PV_M > 5300 && Lambdab_DTF_Lambda_PV_M < 5940)"
+background: "(Lambdab_DTF_Lambda_PV_M > 5000 && Lambdab_DTF_Lambda_PV_M < 5400) || (Lambdab_DTF_Lambda_PV_M>5720 && Lambdab_DTF_Lambda_PV_M<6500)"
+ll: "Pion_TRACKTYPE == 3 && Proton_TRACKTYPE == 3"
+dd: "Pion_TRACKTYPE == 5 && Proton_TRACKTYPE == 5"
+BDT_selection_ll: "BDTG > 0.9"
+BDT_selection_dd: "BDTG > 0.9"
+high_q2: "q2 > 15"
+
+# BDT hyperparameters
+ll_trees: 
+- 160
+ll_learning_rate: 
+- 10
+ll_depth: 
+- 3
+
+dd_trees: 
+- 170
+dd_learning_rate: 
+- 12
+dd_depth: 
+- 3
+
+# BDT features
+ll_features:
+- Lambdab_BPVLTIME
+- log10_Lambdab_pT
+- Lambdab_DTF_Lambda_CHI2DOF
+- log10_Lambdab_BPVDIRA
+- Lambda_BPVFDCHI2
+- Lambda_BPVFD
+- Lambda_BPVIPCHI2
+- Lambda_BPVLTIME
+- Pion_BPVIPCHI2
+- log10_Proton_pT
+- log10_L1_pT
+#- ProbNNmu_max
+- ProbNNmu_min
+- log10_chi2ip_max
+- log10_chi2ip_min
+- log10_chi2ip_min_pi_p
+
+dd_features:
+- Lambdab_BPVLTIME
+- log10_Lambdab_pT
+- Lambdab_DTF_Lambda_CHI2DOF
+- log10_Lambdab_BPVDIRA
+- Lambda_BPVFDCHI2
+- Lambda_BPVFD
+- Lambda_BPVIPCHI2
+- Lambda_BPVLTIME
+- Pion_BPVIPCHI2
+- log10_Proton_pT
+- log10_L1_pT
+#- ProbNNmu_max
+- ProbNNmu_min
+- log10_chi2ip_max
+- log10_chi2ip_min
+- log10_chi2ip_min_pi_p

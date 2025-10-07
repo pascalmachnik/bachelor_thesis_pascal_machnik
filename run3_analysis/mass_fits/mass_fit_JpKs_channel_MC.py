@@ -1,0 +1,150 @@
+import ROOT as r
+import yaml
+import argparse
+import os
+import sys
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),".."))
+sys.path.append(parent_dir)
+from utils.filter import df_filter
+from utils.define import BDT_define
+
+# Argparse setup
+parser = argparse.ArgumentParser(description="Input and output file")
+parser.add_argument("--input", action="store", nargs="+", dest="input", type=str, required=True)
+parser.add_argument("--output", action="store", dest="output", type=str, required=True)
+parser.add_argument("--workspace", action="store", dest="workspace", type=str, required=True)
+parser.add_argument("--track_type", action="store", dest="track_type", type=str, required=True)
+parser.add_argument("--BDTG", action="store_true", help="Apply BDTG cut")
+args = parser.parse_args()
+
+# Enable multithreading for RDataFrame
+r.EnableImplicitMT()
+
+# read the configuration files
+with open("plot_config.yml", "r") as plot_config_file:
+    colors_hex = yaml.safe_load(plot_config_file)
+
+with open("analysis_config.yml", "r") as config_file:
+    config = yaml.safe_load(config_file)
+
+# set global style configurations  
+r.gROOT.SetBatch(True)
+r.gROOT.ProcessLine(".x lhcbStyle.C")
+r.gStyle.SetOptStat(0)
+r.gStyle.SetLegendFont(132)
+r.gStyle.SetLegendTextSize(0.05)
+
+colors = {key: r.TColor.GetColor(val) for key, val in colors_hex.items()}
+signal2_fill_color = r.TColor.GetColorTransparent(colors["orange"], 0.7)  # green with alpha
+signal1_fill_color = r.TColor.GetColorTransparent(colors["blue"], 0.7)  # blue with alpha
+
+# create df from root input file
+df = r.RDataFrame("DecayTree", args.input)
+
+# Apply filters to the DataFrame
+#df = df_filter(df, "truth_matching_JpKs")
+#df = df_filter(df, "Jpsi")
+#df = df_filter(df, "preselection")
+#df = df_filter(df, "fit_range")
+#df = df_filter(df, f"{args.track_type}")
+if args.BDTG:
+    df = df_filter(df, f"BDT_selection_{args.track_type}")
+
+### Do a fit to the Lb mass distribution with RooFit ###
+
+# Define the mass observable
+mass = r.RooRealVar("Lambdab_DTF_LambdaJpsi_PV_M", "m_{#Lambda_{b}}", 5300, 5940)
+
+# Define the signal model
+# The signal is modeled as two double sided Crystal Ball functions
+mean = r.RooRealVar("misID_mean", "misID_mean", 5450, 5000, 5940)
+sigma = r.RooRealVar("misID_sigma", "misID_sigma", 10, 0.5, 20)
+alphal = r.RooRealVar("misID_alphaL", "misID_alphaL", 0.1, 0.001, 5.0)
+alphar = r.RooRealVar("misID_alphaR", "misID_alphaR", 0.1, 0.001, 5.0)
+nL = r.RooRealVar("misID_nL", "misID_nL", 1.0, 0.1, 6.0)
+nR = r.RooRealVar("misID_nR", "misID_nR", 5, 0.001, 7)
+signal = r.RooCrystalBall("signal", "First signal model", mass, mean, sigma, alphal, nL, alphar, nR)
+
+# Create a RooDataSet
+df.Snapshot("DecayTree", f"/ceph/users/pmachnik/temp/R3_{args.BDTG}_{args.track_type}_temp_jpks_MC.root", ["Lambdab_DTF_LambdaJpsi_PV_M"])
+f = r.TFile(f"/ceph/users/pmachnik/temp/R3_{args.BDTG}_{args.track_type}_temp_jpks_MC.root")
+tree = f.Get("DecayTree")
+data = r.RooDataSet("data", "Data", tree, r.RooArgSet(mass))
+
+# Fit the model to the data
+fit_result = signal.fitTo(data, r.RooFit.Save(), r.RooFit.PrintLevel(-1))
+
+
+### Plot the fit result ###
+
+# Create a canvas with two pads for the main plot and the pull plot
+canvas = r.TCanvas("c", "", 1400, 1400)
+pad1 = r.TPad("pad1", "pad1", 0, 0.3, 1, 1)
+pad1.SetBottomMargin(0.02)
+pad1.Draw()
+pad2 = r.TPad("pad2", "pad2", 0, 0, 1, 0.3)
+pad2.SetBottomMargin(0.4)
+pad2.Draw()
+padratio = 0.7 / 0.3
+
+# Draw the fit on the  main pad
+pad1.cd()
+frame = mass.frame(r.RooFit.Bins(100))
+
+data.plotOn(frame, r.RooFit.Invisible())  # Plot data invisibly first to set up the frame
+signal.plotOn(frame, r.RooFit.LineColor(colors["red"]), r.RooFit.Name("Signal"))
+data.plotOn(frame, r.RooFit.Name("Data"))
+r.gStyle.SetStatFontSize(0.05) # Set the stat font size
+signal.paramOn(frame, r.RooFit.Layout(0.55, 0.7, 0.7))
+
+frame.Draw()
+
+frame.GetXaxis().SetTitle("m_{#Lambda_{b}} (MeV/c^{2})")
+
+frame.GetYaxis().SetTitle("Events")
+frame.GetYaxis().SetTitleOffset(1.4)
+frame.GetYaxis().SetLabelSize(0.04)
+frame.GetYaxis().SetTitleSize(0.05)
+
+frame.GetXaxis().SetLabelSize(0)
+frame.GetXaxis().SetTitleSize(0)
+
+legend = r.TLegend(0.6, 0.7, 0.9, 0.9)
+legend.AddEntry(frame.findObject("Data"), "Data", "lep")
+legend.AddEntry(frame.findObject("Signal"), "Total Signal", "l")
+legend.Draw()
+
+# pull plot on the lower pad
+pad2.cd()
+pull_frame = mass.frame()
+
+pull_hist = frame.pullHist("Data", "Signal")
+pull_frame.addPlotable(pull_hist, "P")
+
+pull_frame.GetYaxis().SetTitle("Pull")
+pull_frame.GetYaxis().SetTitleOffset(1.4 / padratio)
+pull_frame.GetYaxis().SetLabelSize(padratio * 0.04)
+pull_frame.GetYaxis().SetTitleSize(padratio * 0.05)
+pull_frame.GetYaxis().SetNdivisions(505)
+pull_frame.SetMinimum(-5.5)
+pull_frame.SetMaximum(5.5)
+
+pull_frame.GetXaxis().SetTitle("m_{#Lambda_{b}} [MeV/c^{2}]")
+pull_frame.GetXaxis().SetLabelSize(padratio * 0.04)
+pull_frame.GetXaxis().SetTitleSize(padratio * 0.05)
+
+pull_frame.Draw()
+
+# Save the canvas to a file
+canvas.SaveAs(args.output)
+
+# Save the workspace in a ROOT file
+ws = r.RooWorkspace("ws_mc_jpks")
+getattr(ws, "import")(mass)
+getattr(ws, "import")(signal)
+getattr(ws, "import")(data)
+ws.saveSnapshot("fitResult", ws.allVars())
+ws.writeToFile(args.workspace)
+
+# remove the temporary file
+os.remove(f"/ceph/users/pmachnik/temp/R3_{args.BDTG}_{args.track_type}_temp_jpks_MC.root")
