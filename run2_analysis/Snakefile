@@ -1,0 +1,707 @@
+# Configs used for the analysis
+configfile: "analysis_config.yml"
+
+# target files to be generated
+rule all:
+    input:
+        # corrected MC files
+        expand("/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr_all.root", year=config["years"], magnet=config["magnet"]),
+        expand("/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_JpsiMC_{year}_{magnet}_corr_all.root", year=config["years"], magnet=config["magnet"]),
+        # mass fits
+        expand("../plots/mass_fits/RM_{tracktype}_channel_data.pdf", tracktype=["ll", "dd"]),
+        expand("../plots/mass_fits/Jpsi_channel_data_{tracktype}.pdf", tracktype=["ll", "dd"]),
+        expand("../plots/mass_fits/Jpsi_channel_BDTG_data_{tracktype}.pdf", tracktype=["ll", "dd"]),
+        # sWeights
+        expand("/ceph/users/pmachnik/Lambdab/Jpsi/Jpsi_sWeights_{tracktype}.root", tracktype=["ll", "dd"]),
+        expand("/ceph/users/pmachnik/Lambdab/RM/RM_sWeights_{tracktype}_1516.root", tracktype=["ll", "dd"]),
+        expand("/ceph/users/pmachnik/Lambdab/BDT/RM_sWeights_{tracktype}_1516_BDTG.root", tracktype=["ll", "dd"]),
+        # BDT preprocessed data
+        "/ceph/users/pmachnik/Lambdab/TMVA_training/signal_ll.root",
+        "/ceph/users/pmachnik/Lambdab/TMVA_training/signal_dd.root",
+        "/ceph/users/pmachnik/Lambdab/TMVA_training/background_ll.root",
+        "/ceph/users/pmachnik/Lambdab/TMVA_training/background_dd.root",
+        # BDT training results
+        expand("TMVA_N{trees}_Sh{learning_rate}_D{depth}_alldata_ll.root", trees=config["ll_trees"], learning_rate=config["ll_learning_rate"], depth=config["ll_depth"]),
+        expand("TMVA_N{trees}_Sh{learning_rate}_D{depth}_alldata_dd.root", trees=config["dd_trees"], learning_rate=config["dd_learning_rate"], depth=config["dd_depth"]),
+        # BDT files ready to calculate the BDT score
+        expand("/ceph/users/pmachnik/Lambdab/BDT_preselection/{sample}_{tracktype}.root", tracktype=["ll", "dd"], sample=["MC", "data"]),
+        # BDT files with BDT scores
+        expand("/ceph/users/pmachnik/Lambdab/BDT/{sample}_{tracktype}_BDTG.root", tracktype=["ll", "dd"], sample=["MC", "data"]),
+        expand("/ceph/users/pmachnik/Lambdab/BDT/RM_MC_1516_BDTG_{tracktype}.root", tracktype=["ll", "dd"]),
+        expand("/ceph/users/pmachnik/Lambdab/BDT/Jpsi_sWeights_{tracktype}_BDTG.root", tracktype=["ll", "dd"]),
+        expand("/ceph/users/pmachnik/Lambdab/BDT/Jpsi_{tracktype}_{sample}_BDTG.root", tracktype=["ll", "dd"], sample=["MC", "data"]),
+        expand("/ceph/users/pmachnik/Lambdab/BDT/JpKs_{tracktype}_MC_BDTG.root", tracktype=["ll", "dd"]),
+        # Other plots
+        "../plots/armentos_podolanski/Jpsi_channel.pdf",
+        # Control files
+        expand("/ceph/users/pmachnik/Lambdab/control_files/.done_FOM_{tracktype}", tracktype=["ll", "dd"]),
+
+
+
+# ============================================================================
+# =========== MC corrections for RM ===========
+# ============================================================================
+
+# rule for preprocessing the MC samples for the pid correction
+rule preprocess_MC_samples:
+    input:
+        file = "/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_PHMC_{year}_{magnet}.root",
+        script = "pid_preprocessing.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_pidpre.root"
+    threads: 2
+    shell:
+        """
+        echo "Running PID preprocessing for {wildcards.year} {wildcards.magnet} sample"
+        python pid_preprocessing.py --input {input.file} --output {output}
+        echo "Finished PID preprocessing for {wildcards.year} {wildcards.magnet} sample"
+        """
+
+# rule for pid_corrections of the MC samples
+rule pid_correction:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_pidpre.root",
+        script = "pid_correct.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr.root"
+    threads: 2
+    shell:
+        """
+        bash -c 'source /usr/scripts/lhcbsetup.sh
+        echo "Running PID correction for {wildcards.year} {wildcards.magnet} sample"
+        lb-conda pidgen python pid_correct.py --input {input.file} --output {output} --dataset {wildcards.magnet}{wildcards.year}
+        echo "Finished PID correction for {wildcards.year} {wildcards.magnet} sample"
+        '
+        """
+
+# rule for computing L0 muon and dimuon corrections
+rule add_L0Muon_and_L0DIMuon_weights:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr.root",
+        script1 = "addL0Muonweights_Run2.C",
+        script2 = "addL0DiMuonweights_Run2.C"
+    output:
+       touch("/ceph/users/pmachnik/Lambdab/control_files/.done_L0weights_{year}_{magnet}")
+    threads: 2
+    shell:
+        """
+        echo "Adding L0Muon and L0DiMuon weights for {wildcards.year} {wildcards.magnet} sample"
+        root -l -b -q '{input.script1}("{input.file}")'
+        root -l -b -q '{input.script2}("{input.file}")'
+        echo "Finished adding L0Muon and L0DiMuon weights for {wildcards.year} {wildcards.magnet} sample"
+        """
+
+# rule for preprocessing the MC samples for the PTETA weights
+rule preprocess_PTETA_MC_samples:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_JpsiMC_{year}_{magnet}.root", year=config["years"],magnet=config["magnet"]),
+        script = "PTETA_preprocessing.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/MC/weights/PTETA_pre.root"
+    threads: 8
+    shell:
+        """
+        echo "Running preprocessing for PTETA weights"
+        python {input.script} --input {input.files} --output {output}
+        echo "Finished preprocessing for PTETA weights"
+        """
+    
+# rule for adding the PTETA weights to the MC
+rule add_PTETA_weights:
+    input:
+        "/ceph/users/pmachnik/Lambdab/MC/weights/PTETA_pre.root",
+        "/ceph/users/pmachnik/Lambdab/Jpsi/Jpsi_sWeights.root",
+        file = "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr.root",
+        script1 = "corr_PTETA_det.C",
+        script2 = "addPTETAweights_det.C",
+        order = "/ceph/users/pmachnik/Lambdab/control_files/.done_L0weights_{year}_{magnet}",
+    output:
+        touch("/ceph/users/pmachnik/Lambdab/control_files/.done_PTETAweights_{year}_{magnet}")
+    threads: 2
+    shell:
+        """
+        echo "Adding PTETA weights for {wildcards.year} {wildcards.magnet} sample"
+        root -l -b -q '{input.script1}'
+        root -l -b -q '{input.script2}("{input.file}")'
+        echo "Finished adding PTETA weights for {wildcards.year} {wildcards.magnet} sample"
+        """
+
+# rule for adding correction weights to the MC
+rule add_weights:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr.root",
+        script = "weights_MC.py",
+        order = "/ceph/users/pmachnik/Lambdab/control_files/.done_PTETAweights_{year}_{magnet}",
+    output:
+        "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr_all.root" 
+    threads: 2
+    shell:
+        """
+        echo "Adding weights for {wildcards.year} {wildcards.magnet} sample"
+        python {input.script} --input {input.file} --output {output}
+        rm -f {input.file}
+        echo "Finished adding weights for {wildcards.year} {wildcards.magnet} sample"
+        """
+
+
+# ============================================================================
+# =========== MC corrections for Jpsi ===========
+# ============================================================================
+# No PID correction for Jpsi channel, only L0 and PTETA and Lifetime weights are added
+
+# preprocessing the Jpsi MC samples for the correction
+rule preprocess_Jpsi_MC_samples:
+    input:
+        file = "/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_JpsiMC_{year}_{magnet}.root",
+        script = "Jpsi_preprocessing.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_JpsiMC_{year}_{magnet}.root"
+    threads: 2
+    shell:
+        """
+        echo "Running preprocessing for Jpsi {wildcards.year} {wildcards.magnet} sample"
+        python Jpsi_preprocessing.py --input {input.file} --output {output}
+        echo "Finished preprocessing for Jpsi {wildcards.year} {wildcards.magnet} sample"
+        """
+
+# rule for computing L0 muon and dimuon corrections
+rule add_L0Muon_and_L0DIMuon_weights_Jpsi:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_JpsiMC_{year}_{magnet}.root", 
+        script1 = "addL0Muonweights_Run2.C",
+        script2 = "addL0DiMuonweights_Run2.C"
+    output:
+       touch("/ceph/users/pmachnik/Lambdab/control_files/.done_L0weights_{year}_{magnet}_Jpsi")
+    threads: 2
+    shell:
+        """
+        echo "Adding L0Muon and L0DiMuon weights for {wildcards.year} {wildcards.magnet} sample on Jpsi channel"
+        root -l -b -q '{input.script1}("{input.file}")'
+        root -l -b -q '{input.script2}("{input.file}")'
+        echo "Finished adding L0Muon and L0DiMuon weights for {wildcards.year} {wildcards.magnet} sample on Jpsi channel"
+        """
+    
+# rule for adding the PTETA weights to the MC
+rule add_PTETA_weights_Jpsi:
+    input:
+        "/ceph/users/pmachnik/Lambdab/MC/weights/PTETA_pre.root",
+        "/ceph/users/pmachnik/Lambdab/Jpsi/Jpsi_sWeights.root",
+        file = "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_JpsiMC_{year}_{magnet}.root",
+        script1 = "corr_PTETA_det.C",
+        script2 = "addPTETAweights_det.C",
+        order = "/ceph/users/pmachnik/Lambdab/control_files/.done_L0weights_{year}_{magnet}_Jpsi",
+    output:
+        touch("/ceph/users/pmachnik/Lambdab/control_files/.done_PTETAweights_{year}_{magnet}_Jpsi")
+    threads: 2
+    shell:
+        """
+        echo "Adding PTETA weights for {wildcards.year} {wildcards.magnet} sample on Jpsi channel"
+        root -l -b -q '{input.script1}'
+        root -l -b -q '{input.script2}("{input.file}")'
+        echo "Finished adding PTETA weights for {wildcards.year} {wildcards.magnet} sample on Jpsi channel"
+        """
+
+# rule for adding correction weights to the MC
+rule add_weights_Jpsi:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_JpsiMC_{year}_{magnet}.root",
+        script = "weights_MC.py",
+        order = "/ceph/users/pmachnik/Lambdab/control_files/.done_PTETAweights_{year}_{magnet}_Jpsi",
+    output:
+        "/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_JpsiMC_{year}_{magnet}_corr_all.root" 
+    threads: 2
+    shell:
+        """
+        echo "Adding weights for {wildcards.year} {wildcards.magnet} sample on Jpsi channel"
+        python {input.script} --input {input.file} --output {output}
+        rm -f {input.file}
+        echo "Finished adding weights for {wildcards.year} {wildcards.magnet} sample on Jpsi channel"
+        """
+
+
+# ============================================================================
+# =========== Jpsi channel mass fits ===========
+# ============================================================================
+
+# rule for making the mass fit on the JpKs MC sample in order to determine the tailparameters
+rule mass_fit_JpKs_channel_MC:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_JpKsMC_2017_{magnet}.root", magnet=config["magnet"]), 
+        script = "mass_fit_JpKs_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/JpKs_channel_MC_2017_merged_{tracktype}.pdf",
+        workspace = "../build/JpKs_MC_{tracktype}_ws.root"
+    threads: 4
+    shell:
+        """
+        echo "Running JpKs MC mass fit for merged 2017 sample for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished JpKs MC mass fit for merged 2017 sample for {wildcards.tracktype} track type"
+        """
+
+
+# rule for making the mass fit on the Jpsi MC sample in order to determine the tailparameters of the signal in the Jpsi channel
+rule mass_fit_Jpsi_channel_MC:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_JpsiMC_{year}_{magnet}.root", year=config["years"],magnet=config["magnet"]),
+        script = "mass_fit_Jpsi_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/Jpsi_channel_MC_{tracktype}.pdf",
+        workspace = "../build/Jpsi_MC_{tracktype}_ws.root",
+    threads: 4
+    shell:
+        """
+        echo "Running Jpsi MC mass fit for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished Jpsi MC mass fit for {wildcards.tracktype} track type"
+        """
+
+
+# rule for making the mass fit on the data sample
+rule mass_fit_Jpsi_channel_data:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_Data_{year}_{magnet}.root", year=config["years"], magnet=config["magnet"]),
+        workspace_Jpsi = "../build/Jpsi_MC_{tracktype}_ws.root",
+        workspace_JpKs = "../build/JpKs_MC_{tracktype}_ws.root",
+        script = "mass_fit_Jpsi_channel_data.py"
+    output:
+        plot = "../plots/mass_fits/Jpsi_channel_data_{tracktype}.pdf",
+        workspace = "../build/Jpsi_data_{tracktype}_ws.root",
+    threads: 8
+    shell:
+        """
+        echo "Running Jpsi Data mass fit for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output.plot} --Jpsi {input.workspace_Jpsi} --JpKs {input.workspace_JpKs} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished Jpsi Data mass fit for {wildcards.tracktype} track type"
+        """
+
+
+### Now the same mass fits with BDTG cuts
+
+# rule for making the mass fit on the JpKs MC sample in order to determine the tailparameters
+rule mass_fit_JpKs_channel_MC_BDTG:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab/BDT/JpKs_{tracktype}_MC_BDTG.root", 
+        script = "mass_fit_JpKs_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/JpKs_channel_BDTG_MC_2017_merged_{tracktype}.pdf",
+        workspace = "../build/JpKs_MC_{tracktype}_ws_BDTG.root"
+    threads: 4
+    shell:
+        """
+        echo "Running JpKs MC mass fit for merged 2017 sample for {wildcards.tracktype} track type with BDTG cuts"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype} --BDTG
+        echo "Finished JpKs MC mass fit for merged 2017 sample for {wildcards.tracktype} track type with BDTG cuts"
+        """
+
+
+# rule for making the mass fit on the Jpsi MC sample in order to determine the tailparameters of the signal in the Jpsi channel
+rule mass_fit_Jpsi_channel_MC_BDTG:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab/BDT/Jpsi_{tracktype}_MC_BDTG.root",
+        script = "mass_fit_Jpsi_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/Jpsi_channel_BDTG_MC_{tracktype}.pdf",
+        workspace = "../build/Jpsi_MC_{tracktype}_ws_BDTG.root",
+    threads: 4
+    shell:
+        """
+        echo "Running Jpsi MC mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype} --BDTG
+        echo "Finished Jpsi MC mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        """
+
+
+# rule for making the mass fit on the data sample
+rule mass_fit_Jpsi_channel_data_BDTG:
+    input:
+        files = "/ceph/users/pmachnik/Lambdab/BDT/Jpsi_{tracktype}_data_BDTG.root",
+        workspace_Jpsi = "../build/Jpsi_MC_{tracktype}_ws_BDTG.root",
+        workspace_JpKs = "../build/JpKs_MC_{tracktype}_ws_BDTG.root",
+        script = "mass_fit_Jpsi_channel_data.py"
+    output:
+        plot = "../plots/mass_fits/Jpsi_channel_BDTG_data_{tracktype}.pdf",
+        workspace = "../build/Jpsi_data_{tracktype}_BDTG_ws.root",
+    threads: 8
+    shell:
+        """
+        echo "Running Jpsi Data mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        python {input.script} --input {input.files} --output {output.plot} --Jpsi {input.workspace_Jpsi} --JpKs {input.workspace_JpKs} --workspace {output.workspace} --track_type {wildcards.tracktype} --BDTG
+        echo "Finished Jpsi Data mass fit for {wildcards.tracktype} track type with BDTG cuts"
+        """
+
+
+
+
+
+# ============================================================================
+# =========== RM mass fit ===========
+# ============================================================================
+
+# rule for making the mass fit on the RM MC sample in order to determine the tailparameters of the signal in the RM channel
+rule mass_fit_RM_channel_MC:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/BDT/MC_{tracktype}_BDTG.root",
+        script = "mass_fit_RM_channel_MC.py"
+    output:
+        plot = "../plots/mass_fits/RM_{tracktype}_channel_MC.pdf",
+        workspace = "../build/RM_{tracktype}_MC_ws.root",
+    threads: 4
+    shell:
+        """
+        echo "Running RM MC mass fit for {wildcards.tracktype} track type"
+        python {input.script} --input {input.file} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished RM MC mass fit for {wildcards.tracktype} track type"
+        """
+
+# rule for making the mass fit on the RM data sample
+rule mass_fit_RM_channel_data:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/BDT/data_{tracktype}_BDTG.root",
+        workspace_RM = "../build/RM_{tracktype}_MC_ws.root",
+        script = "mass_fit_RM_channel_data.py"
+    output:
+        plot = "../plots/mass_fits/RM_{tracktype}_channel_data.pdf",
+        workspace = "../build/RM_{tracktype}_data_ws.root",
+    threads: 8
+    shell:
+        """
+        echo "Running RM Data mass fit"
+        python {input.script} --input {input.file} --output {output.plot} --RM {input.workspace_RM} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished RM Data mass fit"
+        """
+
+
+
+# ============================================================================
+# =========== RM 2015 and 2016 mass fit ===========
+# ============================================================================
+
+# rule for making the mass fit on the RM MC sample 15 and 16 in order to determine the tailparameters of the signal in the RM channel
+rule mass_fit_RM_channel_MC_1516:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_PHMC_{year}_{magnet}.root", year=["2015", "2016"], magnet=config["magnet"]),
+        script = "mass_fit_RM_channel_MC_1516.py",
+    output:
+        plot = "../plots/mass_fits/RM_channel_MC_{tracktype}_1516.pdf",
+        workspace = "../build/RM_1516_MC_{tracktype}_ws.root",
+    threads: 4
+    shell:
+        """
+        echo "Running RM MC mass fit for {wildcards.tracktype} 15 and 16 samples"
+        python {input.script} --input {input.files} --output {output.plot} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished RM MC mass fit for {wildcards.tracktype} 15 and 16 samples"
+        """
+
+# rule for making the mass fit on the RM data sample 15 and 16
+rule mass_fit_RM_channel_data_1516:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_Data_{year}_{magnet}.root", year=["2015", "2016"], magnet=config["magnet"]),
+        workspace_RM = "../build/RM_1516_MC_{tracktype}_ws.root",
+        script = "mass_fit_RM_channel_data_1516.py"
+    output:
+        plot = "../plots/mass_fits/RM_channel_data_{tracktype}_1516.pdf",
+        workspace = "../build/RM_1516_data_{tracktype}_ws.root",
+    threads: 8
+    shell:
+        """
+        echo "Running RM Data mass fit for {wildcards.tracktype} 16 and 17 samples"
+        python {input.script} --input {input.files} --output {output.plot} --RM {input.workspace_RM} --workspace {output.workspace} --track_type {wildcards.tracktype}
+        echo "Finished RM Data mass fit for {wildcards.tracktype} 16 and 17 samples"
+        """
+
+
+
+# ============================================================================
+# =========== sWeights computation ===========
+# ============================================================================
+
+# rule for computing the sWeights for the Jpsi channel
+rule sweights_Jpsi_channel_BDTG:
+    input:
+        workspace = "../build/Jpsi_data_{tracktype}_ws.root",
+        script = "sWeights_Jpsi.py"
+    output:
+        files = "/ceph/users/pmachnik/Lambdab/Jpsi/Jpsi_sWeights_{tracktype}.root"
+    threads: 4
+    shell:
+        """
+        echo "Running sWeights computation for Jpsi channel for {wildcards.tracktype} track type"
+        python {input.script} --workspace {input.workspace} --output {output.files} --track_type {wildcards.tracktype}
+        echo "Finished sWeights computation for Jpsi channel for {wildcards.tracktype} track type"
+        """
+
+# calculating the sWeights for the RM channel
+rule sweights_RM_channel_1516:
+    input:
+        workspace = "../build/RM_1516_data_{tracktype}_ws.root",
+        script = "sWeights_RM_1516.py"
+    output:
+        file = "/ceph/users/pmachnik/Lambdab/RM/RM_sWeights_{tracktype}_1516.root"
+    threads: 4
+    shell:
+        """
+        echo "Running sWeights computation for RM channel for {wildcards.tracktype} 15 and 15 samples"
+        python {input.script} --workspace {input.workspace} --output {output.file} --track_type {wildcards.tracktype}
+        echo "Finished sWeights computation for RM channel for {wildcards.tracktype} 15 and 16 samples"
+        """
+
+
+
+# ============================================================================
+# =========== BDT Training ===========
+# ============================================================================
+
+# rule for preprocessing the signal and background data sets for the BDT training
+rule BDT_preprocess:
+    input:
+        file_s = expand("/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr_all.root", year=config["years"], magnet=config["magnet"]),
+        file_b = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_Data_{year}_{magnet}.root", year=config["years"], magnet=config["magnet"]),
+        script = "BDT_preprocessing.py"
+    output:
+        file_s_ll = "/ceph/users/pmachnik/Lambdab/TMVA_training/signal_ll.root",
+        file_s_dd = "/ceph/users/pmachnik/Lambdab/TMVA_training/signal_dd.root",
+        file_b_ll = "/ceph/users/pmachnik/Lambdab/TMVA_training/background_ll.root",
+        file_b_dd = "/ceph/users/pmachnik/Lambdab/TMVA_training/background_dd.root",
+    threads: 16
+    shell:
+        """
+        echo "Preprocessing signal and background data sets for BDT training"
+        python {input.script} --signal {input.file_s} --background {input.file_b} --output_signal_ll {output.file_s_ll} --output_signal_dd {output.file_s_dd} --output_background_ll {output.file_b_ll} --output_background_dd {output.file_b_dd} 
+        echo "Finished preprocessing signal and background data sets for BDT training"
+        """
+
+# rule for running the TMVA training
+rule TMVA_training:
+    input:
+        signal = "/ceph/users/pmachnik/Lambdab/TMVA_training/signal_{tracktype}.root",
+        background = "/ceph/users/pmachnik/Lambdab/TMVA_training/background_{tracktype}.root",
+        script = "TMVA.py",
+    output:
+        file = "TMVA_N{trees}_Sh{learning_rate}_D{depth}_alldata_{tracktype}.root",
+        xml = "/home/pmachnik/bachelor_thesis/run2_analysis/dataset_N{trees}_Sh{learning_rate}_D{depth}_{tracktype}/weights/TMVAClassification_BDTG.weights.xml",
+    threads: 16
+    params:
+        features = lambda wildcards: config[f"{wildcards.tracktype}_features"],
+    shell:
+        """
+        echo "Running TMVA training for {wildcards.tracktype} track type"
+        python {input.script} --input_signal {input.signal} --input_background {input.background} --features {params.features} > TMVA_N{wildcards.trees}_Sh{wildcards.learning_rate}_D{wildcards.depth}_alldata_{wildcards.tracktype}.txt
+        echo "Finished TMVA training for {wildcards.tracktype} track type"
+        """
+
+
+
+# ============================================================================
+# =========== BDT preselection and computing BDTG scores ===========
+# ============================================================================
+
+# rule for computing FOM in order to determine the optimal BDTG cuts
+rule FOM:
+    input:
+        file_MC = "/ceph/users/pmachnik/Lambdab/BDT/MC_{tracktype}_BDTG.root",
+        file_data = "/ceph/users/pmachnik/Lambdab/BDT/data_{tracktype}_BDTG.root",
+        script = "FOM.py"
+    output:
+        touch("/ceph/users/pmachnik/Lambdab/control_files/.done_FOM_{tracktype}"),
+    threads: 8
+    shell:
+        """
+        echo "Running FOM preprocessing for {wildcards.tracktype} track type"
+        python {input.script} --input_MC {input.file_MC} --input_data {input.file_data} --track_type {wildcards.tracktype}
+        echo "Finished FOM preprocessing for {wildcards.tracktype} track type"
+        """
+
+# rule for applying the cuts on the data sample to prepare them for the BDT score calculation
+rule BDT_preselection_data:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_Data_{year}_{magnet}.root", year=config["years"], magnet=config["magnet"]),
+        script = "BDT_preselection.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/BDT_preselection/data_{tracktype}.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for {wildcards.tracktype} track type on data"
+        python {input.script} --input {input.files} --output {output} --track_type {wildcards.tracktype} --sample data
+        echo "Finished BDT preselection for {wildcards.tracktype} track type on data"
+        """
+
+# rule for applying the cuts on the MC sample to prepare them for the BDT score calculation
+rule BDT_preselection_MC:
+    input:
+        files = expand("/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr_all.root", year=config["years"], magnet=config["magnet"]),
+        script = "BDT_preselection.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/BDT_preselection/MC_{tracktype}.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for {wildcards.tracktype} track type on MC"
+        python {input.script} --input {input.files} --output {output} --track_type {wildcards.tracktype} --sample MC
+        echo "Finished BDT preselection for {wildcards.tracktype} track type on MC"
+        """
+
+# rule for adding the BDT scores to the data and MC
+rule add_BDT_scores:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/BDT_preselection/{sample}_{tracktype}.root",
+        xml = lambda wildcards: f"/home/pmachnik/bachelor_thesis/run2_analysis/dataset_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_{wildcards.tracktype}/weights/TMVAClassification_BDTG.weights.xml"
+    output:
+        "/ceph/users/pmachnik/Lambdab/BDT/{sample}_{tracktype}_BDTG.root"
+    threads: 4
+    shell:
+        """
+        echo "Adding BDT scores for {wildcards.tracktype} track type on {wildcards.sample} sample"
+        make -C tmva-branch-adder/src
+        tmva-branch-adder/src/main {input.file} DecayTree {input.xml} {output} BDTG
+        echo "Finished adding BDT scores for {wildcards.tracktype} track type on {wildcards.sample} sample"
+        """
+
+# rule for computing the BDT scores for the Jpsi channel
+rule add_BDT_scores_Jpsi_sWeights:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/Jpsi/Jpsi_sWeights_{tracktype}.root",
+    output:
+        file = "/ceph/users/pmachnik/Lambdab/BDT/Jpsi_sWeights_{tracktype}_BDTG.root"
+    params:
+        xml = lambda wildcards: f"/home/pmachnik/bachelor_thesis/run2_analysis/dataset_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_{wildcards.tracktype}/weights/TMVAClassification_BDTG.weights.xml"
+    threads: 4
+    shell:
+        """
+        echo "Adding BDT scores for Jpsi channel for {wildcards.tracktype} track type"
+        make -C tmva-branch-adder/src
+        tmva-branch-adder/src/main {input.file} DecayTree {params.xml} {output.file} BDTG
+        echo "Finished adding BDT scores for Jpsi channel for {wildcards.tracktype} track type"
+        """
+
+# rule for BDT preselection of the RM MC 1516 samples
+rule BDT_preselection_RM_MC_1516:
+    input:
+        files = expand("/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_PHMC_{year}_{magnet}_corr_all.root", year=["2015", "2016"], magnet=config["magnet"]),
+        script = "BDT_preselection.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/BDT_preselection/RM_MC_1516_{tracktype}.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for RM MC 1516 for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output} --track_type {wildcards.tracktype} --sample MC
+        echo "Finished BDT preselection for RM MC 1516 for {wildcards.tracktype} track type"
+        """
+
+# add BDT score to the RM 1516 sWeights
+rule add_BDT_scores_RM_1516:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/RM/RM_sWeights_{tracktype}_1516.root",
+    output:
+        file = "/ceph/users/pmachnik/Lambdab/BDT/RM_sWeights_{tracktype}_1516_BDTG.root",
+    params:
+        xml = lambda wildcards: f"/home/pmachnik/bachelor_thesis/run2_analysis/dataset_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_{wildcards.tracktype}/weights/TMVAClassification_BDTG.weights.xml"
+    shell:
+        """
+        echo "Adding BDT scores for RM channel for {wildcards.tracktype} track type on RM 1516 sWeights"
+        make -C tmva-branch-adder/src
+        tmva-branch-adder/src/main {input.file} DecayTree {params.xml} {output.file} BDTG
+        echo "Finished adding BDT scores for RM channel for {wildcards.tracktype} track type on RM 1516 sWeights"
+        """
+
+# rule for getting the BDT scores for the RM MC 1516
+rule BDT_scores_RM_MC_1516:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/BDT_preselection/RM_MC_1516_{tracktype}.root",
+    output:
+        file = "/ceph/users/pmachnik/Lambdab/BDT/RM_MC_1516_BDTG_{tracktype}.root"
+    params:
+        xml = lambda wildcards: f"/home/pmachnik/bachelor_thesis/run2_analysis/dataset_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_{wildcards.tracktype}/weights/TMVAClassification_BDTG.weights.xml"
+    threads: 4
+    shell:
+        """
+        echo "Adding BDT scores for RM channel for {wildcards.tracktype} track type on RM MC"
+        make -C tmva-branch-adder/src
+        tmva-branch-adder/src/main {input.file} DecayTree {params.xml} {output.file} BDTG
+        echo "Finished adding BDT scores for RM channel for {wildcards.tracktype} track type on RM MC"
+        """
+
+# rule for preselecting the Jpsi data
+rule BDT_preselection_Jpsi_data:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_Data_{year}_{magnet}.root", year=config["years"], magnet=config["magnet"]),
+        script = "BDT_preselection_Jpsi.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/BDT_preselection/Jpsi_{tracktype}_data.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for Jpsi data for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output} --track_type {wildcards.tracktype} --sample Jpsi
+        echo "Finished BDT preselection for Jpsi data for {wildcards.tracktype} track type"
+        """
+
+# rule for preselecting the Jpsi MC
+rule BDT_preselection_Jpsi_MC:
+    input:
+        files = expand("/ceph/users/pmachnik/Lambdab/MC/Lb2Lmm_JpsiMC_{year}_{magnet}_corr_all.root", year=config["years"], magnet=config["magnet"]),
+        script = "BDT_preselection_Jpsi.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/BDT_preselection/Jpsi_{tracktype}_MC.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for Jpsi MC for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output} --track_type {wildcards.tracktype} --sample JpsiMC
+        echo "Finished BDT preselection for Jpsi MC for {wildcards.tracktype} track type"
+        """
+
+# rule for preselecting the JpKs MC
+rule BDT_preselection_JpKs_MC:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_JpKsMC_2017_{magnet}.root", magnet=config["magnet"]),
+        script = "BDT_preselection_Jpsi.py"
+    output:
+        "/ceph/users/pmachnik/Lambdab/BDT_preselection/JpKs_{tracktype}_MC.root"
+    threads: 8
+    shell:
+        """
+        echo "Running BDT preselection for Jpsi MC for {wildcards.tracktype} track type"
+        python {input.script} --input {input.files} --output {output} --track_type {wildcards.tracktype} --sample JpKsMC
+        echo "Finished BDT preselection for Jpsi MC for {wildcards.tracktype} track type"
+        """
+
+# rule for adding the BDT scores to the Jpsi data and MC
+rule add_BDT_scores_Jpsi:
+    input:
+        file = "/ceph/users/pmachnik/Lambdab/BDT_preselection/{particle}_{tracktype}_{sample}.root",
+        xml = lambda wildcards: f"/home/pmachnik/bachelor_thesis/run2_analysis/dataset_N{config[f'{wildcards.tracktype}_trees'][0]}_Sh{config[f'{wildcards.tracktype}_learning_rate'][0]}_D{config[f'{wildcards.tracktype}_depth'][0]}_{wildcards.tracktype}/weights/TMVAClassification_BDTG.weights.xml"
+    output:
+        "/ceph/users/pmachnik/Lambdab/BDT/{particle}_{tracktype}_{sample}_BDTG.root"
+    threads: 4
+    shell:
+        """
+        echo "Adding BDT scores for {wildcards.particle} {wildcards.sample} for {wildcards.tracktype} track type"
+        make -C tmva-branch-adder/src
+        tmva-branch-adder/src/main {input.file} DecayTree {input.xml} {output} BDTG
+        echo "Finished adding BDT scores for {wildcards.particle} {wildcards.sample} for {wildcards.tracktype} track type"
+        """
+
+
+
+# ============================================================================
+# =========== Plots ===========
+# ============================================================================
+
+# rule for making the Armentos Podolanksi plot for the Jpsi channel
+rule armenteros_podolanski_Jpsi_channel:
+    input:
+        files = expand("/ceph/users/jnicolini/scripts/Lambdab/Samples/angles/Lb2Lmm_Data_{year}_{magnet}.root", year=config["years"], magnet=config["magnet"]),
+        #files = "/ceph/users/pmachnik/Lambdab/Lb2Lmm_Data_2018_MD_PRES.root",
+        script = "plot_scripts/armentos_podolanski.py"
+    output:
+        plot = "../plots/armentos_podolanski/Jpsi_channel.pdf"
+    threads: 4
+    shell:
+        """ 
+        echo "Running Armentos Podolanski plot for Jpsi channel"
+        python {input.script} --input {input.files} --output {output.plot}
+        echo "Finished Armentos Podolanski plot for Jpsi channel"
+        """

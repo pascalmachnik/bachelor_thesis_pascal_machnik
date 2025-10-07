@@ -1,0 +1,132 @@
+# general
+years:
+  - 2018
+  - 2017
+  - 2016
+  - 2015
+
+
+magnet: 
+  - "MU"
+  - "MD"
+
+# filter
+truth_matching_rd: "Lambdab_BKGCAT == 10 || Lambdab_BKGCAT == 50"
+truth_matching_Jpsi: "Lambdab_BKGCAT == 0 || Lambdab_BKGCAT == 50"
+truth_matching_JpKs: "abs(Lambda_TRUEID)==310 && abs(Lambda_MC_MOTHER_ID)==511 && abs(Jpsi_MC_MOTHER_ID)==511 && abs(Lambdab_TRUEID)==511"
+Jpsi: "(abs(Jpsi_M-3096)<100)"
+fiducial: "(L1_hasRich==1 && L2_hasRich==1 && L1_P>3000 && L2_P>3000 && L1_InAccMuon && L2_InAccMuon)"
+preselection: "(L1_hasMuon==1 && L2_hasMuon==1 && L1_hasRich==1 && L2_hasRich==1 && L1_PT>800 && L2_PT>800 && L1_P>3000 && L2_P>3000 && L1_InAccMuon && L2_InAccMuon) && Lambdab_LOKI_DTF_CHI2NDOF>0 && (L1_ProbNNmu>0.1 && L2_ProbNNmu>0.1) && (abs(Lambda_M-1116)<8) && (Lambda_TAU>0 && Lambda_TAU<2) && Lambda_DIRA_OWNPV>0 && Lambda_FDCHI2_ORIVX>0 && (Lambda_ENDVERTEX_Z>0 && Lambda_ENDVERTEX_Z<2320)"
+preselection_corr: "(L1_hasMuon==1 && L2_hasMuon==1 && L1_hasRich==1 && L2_hasRich==1 && L1_PT>800 && L2_PT>800 && L1_P>3000 && L2_P>3000 && L1_InAccMuon && L2_InAccMuon) && Lambdab_LOKI_DTF_CHI2NDOF>0 && (L1_ProbNNmu_pidcorr_default>0.1 && L2_ProbNNmu_pidcorr_default>0.1) && (abs(Lambda_M-1116)<8) && (Lambda_TAU>0 && Lambda_TAU<2) && Lambda_DIRA_OWNPV>0 && Lambda_FDCHI2_ORIVX>0 && (Lambda_ENDVERTEX_Z>0 && Lambda_ENDVERTEX_Z<2320)"
+trigger: "(L1_L0MuonDecision_TOS || L2_L0MuonDecision_TOS || Jpsi_L0DiMuonDecision_TOS) && (Lambdab_Hlt1TrackMVADecision_TOS || Lambdab_Hlt1TwoTrackMVADecision_TOS || Lambdab_Hlt1TrackMuonMVADecision_TOS) && (Lambdab_Hlt2Topo2BodyDecision_TOS || Lambdab_Hlt2TopoMu2BodyDecision_TOS || Lambdab_Hlt2TopoMuMu2BodyDecision_TOS  || Lambdab_Hlt2Topo3BodyDecision_TOS || Lambdab_Hlt2TopoMu3BodyDecision_TOS || Lambdab_Hlt2TopoMuMu3BodyDecision_TOS || Lambdab_Hlt2DiMuonDetachedDecision_TOS || Lambdab_Hlt2DiMuonDetachedHeavyDecision_TOS)"
+fit_range: "(Lambdab_LOKI_MASS_AllConstr > 5300 && Lambdab_LOKI_MASS_AllConstr < 5940)"
+fit_range_RM: "(Lambdab_LOKI_MASS_LConstr > 5300 && Lambdab_LOKI_MASS_LConstr < 5940)"
+fit_range_RM_1516: "(Lambdab_LOKI_MASS_LConstr > 5400 && Lambdab_LOKI_MASS_LConstr < 5800)"
+background: "(Lambdab_LOKI_MASS_LConstr > 5000 && Lambdab_LOKI_MASS_LConstr < 5400) || (Lambdab_LOKI_MASS_LConstr>5720 && Lambdab_LOKI_MASS_LConstr<6500)"
+ll: "Pion_TRACK_Type == 3 && Proton_TRACK_Type == 3"
+dd: "Pion_TRACK_Type == 5 && Proton_TRACK_Type == 5"
+high_q2: "q2 > 15"
+BDT_selection_ll: "BDTG > 0.9"
+BDT_selection_dd: "BDTG > 0.9"
+
+# definitions
+q2: "(pow(Lambdab_PE-Lambda_PE,2) - pow(Lambdab_PX-Lambda_PX,2) - pow(Lambdab_PY-Lambda_PY,2) - pow(Lambdab_PZ-Lambda_PZ,2))/1000000"
+log10_Lambdab_pT: "log10(abs(Lambdab_PT))"
+log10_Proton_pT: "log10(abs(Proton_PT))"
+ProbNNmu_max: "max(L1_ProbNNmu, L2_ProbNNmu)"
+ProbNNmu_min: "min(L1_ProbNNmu, L2_ProbNNmu)"
+chi2ip_max: "max(L1_IPCHI2_ORIVX, L2_IPCHI2_ORIVX)"
+chi2ip_min: "min(L1_IPCHI2_ORIVX, L2_IPCHI2_ORIVX)"
+chi2ip_min_pi_p: "min(Pion_IPCHI2_OWNPV, Proton_IPCHI2_OWNPV)"
+L0_weights: "(L0MuonWeight_Run2_v1 * Jpsi_L0MuonDecision_TOS + L0DiMuonWeight_Run2_v1 * Jpsi_L0DiMuonDecision_TOS - L0MuonWeight_Run2_v1 * Jpsi_L0MuonDecision_TOS * L0DiMuonWeight_Run2_v1 * Jpsi_L0DiMuonDecision_TOS)"
+life_time_weights: "exp(-Lambdab_TRUETAU/0.001468)/exp(-Lambdab_TRUETAU/0.001451)"
+total_weights: "L0_weights * life_time_weights * kinWeight_Ap24"
+
+# BDT hyperparameters
+ll_trees: 
+- 180
+ll_learning_rate: 
+- 12
+ll_depth: 
+- 4
+
+dd_trees: 
+- 200
+dd_learning_rate: 
+- 10
+dd_depth: 
+- 4
+
+ll_features:
+- "Lambdab_TAU"
+- "Lambdab_TAUCHI2"
+- "Lambdab_ENDVERTEX_CHI2"
+- "log10_Lambdab_pT"
+- "Lambdab_LOKI_DTF_CHI2NDOF"
+- "log10_Lambdab_DIRA_OWNPV"
+#- "Lambdab_DIRA_OWNPV"
+#- "Lambdab_DiraCos"
+#- "Lambdab_IPCHI2_OWNPV"
+#- "Lambda_TAU"
+- "Lambda_TAUCHI2"
+- "Lambda_FDCHI2_OWNPV"
+#- "Lambda_ENDVERTEX_Z"
+#- "Lambda_LOKI_DTF_CHI2NDOF"
+#- "Lambda_DIRA_OWNPV"
+- "Lambda_FD_TOPPV"
+#- "log10_Lambda_pT"
+- "Lambda_IPCHI2_OWNPV"
+- "Pion_IPCHI2_OWNPV"
+#- "Pion_ETA"
+#- "log10_Pion_pT"
+- "log10_Proton_pT"
+#- "Proton_ETA"
+#- "Proton_IPCHI2_OWNPV"
+- "log10_L1_pT"
+- "ProbNNmu_max"
+- "ProbNNmu_min"
+#- "log10_ProbNNmu_max"
+#- "log10_ProbNNmu_min"
+#- "chi2ip_max"
+#- "chi2ip_min"
+#- "chi2ip_min_pi_p"
+- "log10_chi2ip_max"
+- "log10_chi2ip_min"
+- "log10_chi2ip_min_pi_p"
+
+dd_features:
+- "Lambdab_TAU"
+- "Lambdab_TAUCHI2"
+- "Lambdab_ENDVERTEX_CHI2"
+- "log10_Lambdab_pT"
+- "Lambdab_LOKI_DTF_CHI2NDOF"
+- "log10_Lambdab_DIRA_OWNPV"
+#- "Lambdab_DIRA_OWNPV"
+#- "Lambdab_DiraCos"
+#- "Lambdab_IPCHI2_OWNPV"
+- "Lambda_TAU"
+#- "Lambda_TAUCHI2"
+#- "Lambda_FDCHI2_OWNPV"
+#- "Lambda_ENDVERTEX_Z"
+#- "Lambda_LOKI_DTF_CHI2NDOF"
+#- "Lambda_DIRA_OWNPV"
+- "Lambda_FD_TOPPV"
+#- "log10_Lambda_pT"
+#- "Lambda_IPCHI2_OWNPV"
+- "Pion_IPCHI2_OWNPV"
+#- "Pion_ETA"
+#- "log10_Pion_pT"
+- "log10_Proton_pT"
+#- "Proton_ETA"
+#- "Proton_IPCHI2_OWNPV"
+- "log10_L1_pT"
+- "ProbNNmu_max"
+- "ProbNNmu_min"
+#- "log10_ProbNNmu_max"
+#- "log10_ProbNNmu_min"
+#- "chi2ip_max"
+#- "chi2ip_min"
+#- "chi2ip_min_pi_p"
+- "log10_chi2ip_max"
+- "log10_chi2ip_min"
+#- "log10_chi2ip_min_pi_p"

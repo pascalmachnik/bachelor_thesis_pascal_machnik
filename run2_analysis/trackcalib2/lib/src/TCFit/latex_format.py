@@ -1,0 +1,75 @@
+latex_obs_names = {
+    # general
+    "J_psi_1S_M" : r"m$_{\mu^{+}\mu^{-}}$",
+    # no simultaneous fit
+    "signal_yield": r"$N_{sig}$",
+    "background_yield": r"$N_{bkg}$",
+    # simultaneous fit
+    "efficiency_sig": r"$\varepsilon_{sig}$",
+    "efficiency_bkg": r"$\varepsilon_{bkg}$",
+    "f_pass": r"$N_{sig}$",
+    "f_fail": r"$N_{sig,F}$",
+    "f_pass_bkg": r"$N_{bkg}$",
+    "f_fail_bkg": r"$N_{bkg,F}$",
+    # (double) Gaussian
+    "mean": r"$\mu$",
+    "sigma": r"$\sigma$",
+    "sigma2": r"$\sigma_2$",
+    "mean_F": r"$\mu_F$",
+    "sigma_F": r"$\sigma_F$",
+    "sigma2_F": r"$\sigma_{2,F}$",
+    # Crystal Ball
+    "alpha": r"$\alpha$",
+    "n": r"$n$",
+    "alpha_F": r"$\alpha_F$",
+    "n_F": r"$n_F$",
+    # Double-sided Crystal Ball
+    "sigma_LR": r"$\sigma_{LR}$",
+    "alpha_L": r"$\alpha_L$",
+    "alpha_R": r"$\alpha_R$",
+    "n_L": r"$n_L$",
+    "n_R": r"$n_R$",
+    "sigma_LR_F": r"$\sigma_{LR,F}$",
+    "alpha_L_F": r"$\alpha_{L,F}$",
+    "alpha_R_F": r"$\alpha_{R,F}$",
+    "n_L_F": r"$n_{L,F}$",
+    "n_R_F": r"$n_{R,F}$",
+    # Johnson
+    "lambda": r"$\lambda$",
+    "gamma": r"$\gamma$",
+    "delta": r"$\delta$",
+    "lambda_F": r"$\lambda_F$",
+    "gamma_F": r"$\gamma_F$",
+    "delta_F": r"$\delta_F$",
+    # for two gammas and/or lambdas
+    "lambda2": r"$\lambda_2$",
+    "gamma2": r"$\gamma_2$",
+    "lambda2_F": r"$\lambda_{2,F}$",
+    "gamma2_F": r"$\gamma_{2,F}$",
+    # Exponential
+    "tau": r"$\tau$",
+    "tau_F": r"$\tau_F$",
+    # Polynomial
+    "c0": r"$c_0$",
+    "c1": r"$c_1$",
+    "c2": r"$c_2$",
+    "c3": r"$c_3$",
+    "c0_F": r"$c_{0,F}$",
+    "c1_F": r"$c_{1,F}$",
+    "c2_F": r"$c_{2,F}$",
+    "c3_F": r"$c_{3,F}$",
+    # Chebyshev
+    "ch0": r"$ch_0$",
+    "ch1": r"$ch_1$",
+    "ch2": r"$ch_2$",
+    "ch3": r"$ch_3$",
+    "ch0_F": r"$ch_{0,F}$",
+    "ch1_F": r"$ch_{1,F}$",
+    "ch2_F": r"$ch_{2,F}$",
+    "ch3_F": r"$ch_{3,F}$",
+    # Additional parameters
+    "sigma_L": r"$\sigma_L$",
+    "sigma_R": r"$\sigma_R$",
+    "sigma_L_F": r"$\sigma_{L,F}$",
+    "sigma_R_F": r"$\sigma_{R,F}$",
+}
