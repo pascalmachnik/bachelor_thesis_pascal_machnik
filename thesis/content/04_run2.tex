@@ -1,0 +1,155 @@
+\chapter{Run 2 Study}
+\label{ch:run2}
+In this chapter, the study performed on the Run 2 data is described in detail, which is based on an existing angular analysis \cite{Janina}. First, the data samples and Monte Carlo (MC) simulation used for the study are presented, followed by the online and offline selection criteria. The chapter then discusses the simulation corrections applied. A Multivariate Analysis (MVA) is performed to improve the signal purity, and finally, invariant mass fits are conducted to extract the signal yields.
+
+\section{Data Samples}
+\label{sec:run2_data_samples}
+The $pp$ collision data samples analyzed in this study were recorded by the LHCb experiment between 2015 and 2018 during Run 2. The dataset corresponds to an integrated luminosity of $\mathcal{L} = \qty{6}{\femto\barn}^{-1}$ at a center-of-mass energy of $\sqrt{s} = \qty{13}{\tera\electronvolt}$. Several decay channels are of interest, particularly the rare decay $\Lambda_b^0 \to \Lambda^0 \mu^+ \mu^-$. In addition, the  resonant mode $\Lambda_b^0 \to \Lambda^0 J/\psi (\to \mu^+ \mu^-)$ is studied. It is used for the simulation calibration, as it has the same final-state particles but higher statistics due to the tree-level nature of the decay. The resonant mode is selected by applying the mass constraint $\vert m(J/\psi)-\qty{3096}{\mega\electronvolt} \vert < \qty{100}{\mega\electronvolt}$. Apart from this, the signal selection strategy follows that used in the rare decay mode.
+
+The data is grouped into Long--Long (LL) and Downstream--Downstream (DD) categories, based on the track types of the decay products from $\Lambda^0 \to p \pi^-$. In this study, two types are considered: long and downstream tracks. For long tracks, particles leave hits in both the VELO and TT, providing tracking information upstream of the magnet. In contrast, downstream tracks do not produce hits in the VELO and are therefore reconstructed without this information. This occurs due to the relatively long lifetime of the neutral $\Lambda^0$ hyperon, which can decay outside the VELO acceptance. In this thesis, LL candidates refer to events where both the proton and the pion from the $\Lambda^0$ decay are reconstructed as long tracks, while DD candidates are events where both decay products are downstream tracks. Generally, downstream tracks are more challenging to reconstruct and exhibit poorer momentum resolution. Events with mixed track types are not considered in this thesis.
+% as both particles originate from the same decay vertex and are expected to share the same track type.
+
+In addition to the data, simulation samples are used. These samples are employed, among other purposes, to determine the signal shape in invariant mass fits, and to train Boosted Decision Trees (BDT) for the MVA. There is a simulation sample for each decay channel, year, and magnet polarity, reflecting the different conditions during data taking. The misidentification (misID) background component in the resonant mode, which is explained in \cref{sec:run2_selection}, is simulated as well.
+
+\section{Online and Offline Selection}
+\label{sec:run2_selection}
+The study for the rare mode is conducted in the high-$q^2$ region above $\qty{15}{\giga\electronvolt\tothe{2}\per\lightspeed\tothe{4}}$, where penguin and $W$ boson box processes have a high statistic and narrow charmonium resonances are absent, as discussed in \cref{sec:q2-spectrum}. The $J/\psi$ samples are excluded from this cut.
+
+There are multiple background sources present in the data. The online and offline selections are the first steps to remove this background. The most significant one is the combinatorial background, which is caused by the random combination of tracks in the detector. Another source is the misID background. This background originates from the misidentification of a $\pi^+$ as a proton in the decay $B^0 \to K^0_{\text{S}} J/\psi$, where the $K^0_{\text{S}}$ decays into $\pi^+$ and $\pi^-$. As a result, the $K^0_{\text{S}}$ mimics the decay products of the $\Lambda^0$ baryon. This background pollutes the signal region of the $J/\psi$ mode and is therefore accounted for in the analysis. Each selection step is applied to both the data and simulation samples for each decay channel.
+
+\subsection{Online Selection}
+\label{sec:run2_online_selection}
+The online event selection is performed by the LHCb trigger system, as described in \cref{sec:lhcb_run2}, and serves to reduce the data volume that must be stored during data taking. The L0 trigger selects events containing one or two muons with high transverse momentum. HLT1 and HLT2 then identify events with high-quality tracks and decay topologies characteristic of the rare decay. All trigger lines used in this analysis are Trigger On Signal (TOS), meaning the decision is based on the signal decay products. Trigger Independent of Signal (TIS) lines are not used in this study. A summary of the trigger decisions is shown in the appendix. Prior to tuple creation, further data reduction and signal selection are performed centrally in the LHCb data flow through stripping. Here, the stripping line \texttt{Bu2LLk\_mmLine} is employed.
+%\textcolor{red}{Hier muss noch die stripping line hin:  inclusive stripping line Bu2LLK_mmLine}
+
+\subsection{Offline Selection}
+\label{sec:run2_offline_selection}
+Following the online selection, the offline selection is subsequently applied to the preselected events. It is adopted from the angular analysis \cite{Janina} and has already been optimized. The offline selection criteria are summarized in \cref{tab:run2_offline_selection}.
+\begin{table}
+    \centering
+    \sisetup{table-format=2.2}
+    \caption{Offline selection cuts used in the Run 2 study.}
+    \label{tab:run2_offline_selection}
+    \begin{tblr}{
+        colspec = {c c},
+    }
+        \toprule
+        Particle & Cuts\\
+        \midrule
+        $\mu^+$, $\mu^-$ & \texttt{hasMuon}\,, \quad \texttt{hasRich}\,, \quad \texttt{inAccMuon}\\
+                         & $p_T > \qty{800}{\mega\electronvolt}$\,, \quad $p > \qty{3000}{\mega\electronvolt}$ \\
+                         & \texttt{ProbNNMu} > 0.1 \\
+        \cline{1-2}
+        $\Lambda^0$      & $\vert m - \qty{1116}{\mega\electronvolt} \vert < \qty{8}{\mega\electronvolt}$\,, \quad $0 < \tau < \qty{2}{\pico\second}$ \\
+                         & $\Theta_{\text{DIRA}} > 0$\,, \quad $\chi^2_\text{FD} > 0$ \\
+                         & $0 < z_\text{EV} < \qty{2320}{\milli\meter}$ \\
+        \cline{1-2}
+        $\Lambda_b^0$    & $\chi^2_{DTF} / \text{ndof}$ > 0 \\
+        \bottomrule
+    \end{tblr}
+\end{table}
+
+Fiducial cuts select events from a well-defined phase space for the detector. These cuts include requiring the muon tracks to lie within the muon system acceptance (\texttt{inAccMuon}), applying momentum thresholds for the muons, and selecting on the $z$ coordinate of the $\Lambda^0$ end vertex. The remaining muon selection criteria ensure robust muon identification by requiring hits in the muon stations and information from the RICH detectors, while rejecting candidates with a low probability of being a muon as estimated by a neural network. The properties of the $\Lambda^0$ can be determined reliably. Especially for LL events, its long flight distance and well-tracked decay products provide clear spatial and kinematic information, allowing for an effective selection based on its reconstructed properties. Finally, the $\chi^2_{DTF}$ value of the $\Lambda_b^0$ is required to be positive, since a failed Decay Tree Fitter (DTF) fit yields negative values. 
+ 
+Truth matching is applied to the simulation samples to ensure only correctly reconstructed signal events are considered. Two methods are used in this thesis. The first matches each reconstructed particle and its mother to their generator-level counterparts using the TRUEID and MOTHERID, which are identifiers that follow the MC particle numbering convention of the Particle Data Group \cite{pdg2024}. The second method uses the \textit{BKGCAT} tool \cite{LHCbBKGCAT}, which classifies each candidate as either signal or a specific background type. Candidates from the rare and $J/\psi$ mode are selected from those \textit{BKGCAT} categories whose $\Lambda_b^0$ mass distributions exhibit a characteristic signal shape \footnote{Rare mode events are accepted if $\texttt{BKGCAT} = 10$ (quasi-signal) or $50$ (low-mass background) and $J/\psi$ mode events if $\texttt{BKGCAT} = 0$ (signal) or $50$.}.  The misID events, on the other hand, are selected with the first method \footnote{The misID truth matching requiers $\vert \texttt{TRUEID}_{\Lambda^0} \vert = 310$, $\vert \texttt{TRUEID}_{\Lambda_b^0} \vert = 511$, $\vert \texttt{MOTHERID}_{\Lambda^0} \vert = 511$,  and $\vert \texttt{MOTHERID}_{J/\psi} \vert = 511$. In this notation, 511 and 310 denote the $\Lambda_b^0$ and $\Lambda^0$ baryons, respectively.}.
+
+
+\section{Simulation Corrections}
+\label{sec:run2_mc_corrections}
+Exact reproduction of the data by simulations is not feasible, owing to the complexity of the measurement, including physics modeling, detector effects, and real-world operational variations. However, known modeling inaccuracies can be corrected, as outlined in this section. In the absence of a dedicated calibration dataset, a representative decay mode is required to describe the measured signal. The $J/\psi$ decay is employed for this purpose, as it provides high statistics and involves the same final-state particles as the rare mode. Fits to the invariant mass distribution of the $\Lambda_b^0$ are performed on the $J/\psi$ mode data with the rare mode online and offline selection applied \footnote{The fits are shown in the appendix}. From these fits, sWeights are computed and subsequently used to construct a representative signal proxy.
+%The simulations employed in this study do not exactly reproduce the data, owing to the high complexity of the detector and physics processes. However, many sources of discrepancies can be corrected. This section outlines the corrections applied to the simulation samples to ensure that they accurately represent the observed data. The $J/\psi$ decay mode is used for calibration in the absence of a dedicated independent dataset, as it provides higher statistics than the rare decay mode while involving the same final-state particles. For this purpose, sWeighted data are obtained from invariant mass fits to the $\Lambda_b^0$ mass distribution in the $J/\psi$ mode. The fits are shown in the appendix.
+
+\subsection{L0 Trigger Corrections}
+\label{sec:run2_trigger_corrections}
+The efficiency of the L0 trigger is dependent on the kinematic properties of the muons, such as their transverse momentum and pseudorapidity. To account for this, the simulation is reweighted to match the L0 trigger efficiency in sWeighted data. The efficiencies needed for the computation of the weight maps are calculated using the \textit{TISTOS} method \cite{TISTOS} on a dedicated $B^+ \to J/\psi \,K^+$ calibration sample. This correction is done separately for the \texttt{Muon} and \texttt{DiMuon} trigger decisions. The final L0 trigger weight $w_\text{L0}$ is then computed as
+\begin{equation*}
+    w_{\text{L0}} = 1 - (1- \texttt{Muon} \cdot w_{\text{Muon}})(1- \texttt{DiMuon} \cdot w_{\text{DiMuon}}),
+\end{equation*}
+where $w_{\text{Muon}}$ and $w_{\text{DiMuon}}$ are the weights for the \texttt{Muon} and \texttt{DiMuon} trigger decisions, respectively.
+
+\subsection{Lifetime Correction}
+\label{sec:run2_lifetime_correction}
+ A correction is applied to adjust for the difference between the fixed mean lifetime used in the simulation and the updated measurements of the $\Lambda_b^0$ baryon lifetime \cite{pdg2024}. A weight $w_{\tau}$ is computed for each event in the simulation samples as
+\begin{equation*}
+    w_{\tau} = \frac{\exp \left(-\frac{t}{\tau_{\text{new}}}\right)}{\exp \left(-\frac{t}{\tau_{\text{old}}}\right)},
+\end{equation*}
+where $t$ is the measured lifetime, $\tau_{\text{old}} = \qty{1.451}{\pico\second}$ the mean lifetime used in the simulation, and $\tau_{\text{new}} = \qty{1.468}{\pico\second}$ \cite{pdg2024} the updated lifetime. The effect of the lifetime correction on the lifetime distribution of the $\Lambda_b^0$ in the $J/\psi$ channel is shown in the appendix.
+
+\subsection{Kinematic Correction}
+\label{sec:run2_kinematic_corrections}
+The kinematic properties of $b$-hadrons are known to be mismodeled in the LHCb simulations. This can be corrected by reweighting the simulation samples using a weight map segmented into bins of $p_{\text{T}}$ and $\eta$. The weight map is calculated with the $J/\psi$ simulation and sWeighted data distributions. As shown in the appendix, this kinematic correction effectively adjusts the transverse momentum distributions.
+%\begin{figure}
+%   \centering
+%    \begin{subfigure}[b]{0.48\textwidth}
+%        \centering
+%        \includegraphics[width=\textwidth]{../plots/MC_Data_agreement/R2/ll/Lambdab_log10_pT.pdf}
+%        \caption{LL}
+%    \end{subfigure}
+%    \hfill
+%    \begin{subfigure}[b]{0.48\textwidth}
+%        \centering
+%        \includegraphics[width=\textwidth]{../plots/MC_Data_agreement/R2/dd/Lambdab_log10_pT.pdf}
+%        \caption{DD}
+%    \end{subfigure}
+%    \caption{The $\log_{10}(p_{\text{T}})$ distributions of the $\Lambda_b^0$ baryon for the LL and DD categories in the $J/\psi$ mode, shown before %(blue) and after (red) the correction, and compared with sWeighted data (black).}
+%    \label{fig:run2_kinematic_corrections}
+%\end{figure}
+
+\subsection{Particle Identification Correction}
+\label{sec:run2_pid_correction}
+The feature \texttt{ProbNNMu}, which represents the probability of a particle being a muon, is used in the offline selection. It was not calibrated in the previous angular analysis \cite{Janina}, but needs to be calibrated using the \textit{PIDGen2} tool \cite{pidgen2}, which is designed to correct the particle identification (PID) response in simulation. Here, the transformation method of the \textit{PIDGen2} tool is used, which employs $p_{\text{T}}$, $\eta$, and the event multiplicity nTracks as the input features. The nTracks feature is mismodeled as well, but can be shifted by multiplying each nTracks value by a constant factor of $1.1$ to accurately represent the distribution seen in sWeighted data. The calibration uses a dedicated $J/\psi \to \mu^+ \mu^-$  calibration sample for each year and magnet polarity. The corrected \texttt{ProbNNMu} feature of the rare mode simulation is shown in the appendix.
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=0.48\textwidth]{../plots/pid_correction/ProbNNmu_comparison.pdf}
+%    \caption{The \texttt{ProbNNMu} distribution of the rare mode simulation for the LL and DD categories combined,
+%    shown before (blue) and after (red) the PID correction, compared with the $J/\psi$ sWeighted data (black).}
+ %   \label{fig:run2_pid_correction}
+%\end{figure}
+
+\section{Multivariate Analysis}
+\label{sec:run2_mva}
+The fully-calibrated simulation samples are employed to train BDTs, with the aim of separating signal events from combinatorial background and minimizing its presence in the dataset. A BDT is a supervised machine learning algorithm that sequentially combines multiple decision trees, where each tree classifies events by making a series of binary decisions based on its input variables and corrects the misclassifications of the previous trees. Separate BDTs are trained for the LL and DD categories. Both the training and the overtraining checks are performed using the \textit{TMVA} package within \textit{ROOT} \cite{root}. The calibrated rare mode simulation is used as the signal proxy for the training. The mass sidebands, $ \qty{5000}{\mega\electronvolt} < m(\Lambda_b^0) < \qty{5400}{\mega\electronvolt}$ and $\qty{5720}{\mega\electronvolt} < m(\Lambda_b^0) < \qty{6500}{\mega\electronvolt}$, are used as a proxy for the background, as they are well separated from the signal peak. The BDT input features were selected based on their ability to distinguish signal from background, as determined by examining their distributions. The BDT was then trained iteratively, removing features with high correlation or low importance to achieve a stable and well-performing classifier. A list of these features, ordered by their feature importance, is shown in the appendix.  The BDT cut value is optimized using the Punzi Figure of Merit (FOM) \cite{punzi}, defined as
+\begin{equation*}
+    \text{FOM}_{\text{Punzi}} = \frac{\epsilon_{\text{S}}}{a/2 + \sqrt{B}},
+\end{equation*}
+where $\epsilon_{\text{S}}$ denotes the signal efficiency determined on simulation, $B$ the number of background events passing the BDT selection for a given cut, and $a$ denotes the desired statistical significance, which is chosen to be $a=5$ for a $5\sigma$ discovery. $B$ is determined by fitting the selected data and calculating the background yield within a $3 \,\sigma$ region around the signal peak. The Punzi FOM is maximized to determine the optimal cut value. It is well-suited for rare decay searches, as it relies on the signal efficiency rather than the absolute signal yield, making it more robust when the expected signal count is small or inaccessible in a blinded analysis. Since plateaus are observed near the maxima \footnote{This behavior is observed for all BDTs in both runs. Therefore, a more relaxed cut is adopted throughout. As an example, the Punzi FOM for the Run 2 LL and Run 3 DD BDT is shown in the appendix.}, a looser cut is chosen in order to increase the statistics for the mass fits.
+The main characteristics and performance metrics of the two BDTs are given in \cref{tab:run2_mva_summary}.
+\begin{table}
+    \centering
+    \caption{Characteristics and performance metrics of the Run 2 BDTs.}
+    \label{tab:run2_mva_summary}
+    \sisetup{table-format=2.2}
+    \begin{tblr}{
+        colspec = {c c c c c c c},
+        column{1} = {c},
+    }
+        \toprule
+         & Trees & Depth & Learning Rate & ROC Score & Cut Value \\ 
+        \midrule
+        LL & $180$ & $4$ & $0.12$ & $0.985$ & $0.9$\\
+        DD & $200$ & $4$ & $0.10$ & $0.972$ & $0.9$\\
+        \bottomrule
+    \end{tblr}
+\end{table}
+
+\section{Invariant Mass Fits}
+\label{sec:run2_mass_fits}
+Following the selection, the signal yields are extracted from the invariant mass distributions of the $\Lambda_b^0$ baryon using a maximum likelihood fit performed with the \textit{RooFit} toolkit \cite{roofit}. The signal component is described by the linear sum of two double-sided Crystal Ball functions. On the other hand, the combinatorial background is modeled by an exponential function. A fit to the simulated signal is conducted to determine the unknown signal shape. In the data fits, only the mean, yield, and width of the signal are left free, while the tail parameters are fixed to the values obtained from the fits to the simulation. \cref{fig:run2_mass_fits} shows the invariant mass fits for LL and DD candidates in the rare decay mode.
+\begin{figure}
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../plots/mass_fits/RM_dd_channel_data.pdf}
+        \caption{DD}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../plots/mass_fits/RM_ll_channel_data.pdf}
+        \caption{LL}
+    \end{subfigure}
+    \caption{Fits to the invariant mass distribution of the $\Lambda_b^0$ baryon with the full rare mode selection applied, shown for DD (right) and LL (left) events.}
+    \label{fig:run2_mass_fits}
+\end{figure}
+
+The signal yields obtained from the mass fits are $N = \num{409(23)}$ for the DD and $N = \num{297(19)}$ for the LL category. The DD category is more frequent than the LL category, owing to the relatively long lifetime of the $\Lambda^0$ hyperon.

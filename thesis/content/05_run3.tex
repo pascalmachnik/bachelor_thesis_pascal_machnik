@@ -1,0 +1,156 @@
+\chapter{Run 3 Study}
+\label{ch:run3}
+This chapter presents the first study of the rare decay $\Lambda_b^0 \to \Lambda^0 \mu^+\mu^-$ with data from Run 3 of the LHC. The analysis strategy from Run 2, as outlined in \cref{ch:run2}, is adopted here, except that the simulation correction is omitted. In the following chapter, the key findings of the Run 3 study are presented and compared to the findings of the Run 2 study.
+
+
+\section{Data Samples}
+\label{sec:run3_data_samples}
+The data used in this study were collected in 2024 by the LHCb experiment during Run 3 of the LHC. They are organized into blocks, each corresponding to specific data-taking conditions, such as magnet polarity. This study uses blocks five to eight, which correspond to the last weeks of 2024 data taking, during which the subdetectors had mostly finished their commissioning. The data samples correspond to an integrated luminosity of $\qty{3.33}{\femto\barn}^{-1}$ at a center-of-mass energy of $\qty{13.6}{\tera\electronvolt}$.
+
+For each block, simulation is used for both the rare decay and the $J/\psi$ mode. No Run 3 simulation samples are available for the misID background of the $J/\psi$ mode, instead, $B^0 \to K^0_{\text{S}} J/\psi$ simulations from Run 2 are used for the $J/\psi$ mass fit.
+
+As in the Run 2 study, events are classified into LL and DD categories, depending on whether the decay products of the $\Lambda^0$ baryon left hits in the VELO or not.
+
+\section{Online and Offline Selection}
+\label{sec:run3_selection}
+The offline selection follows the procedure used in Run 2, as discussed in \cref{sec:run2_selection}. The selection criteria are listed in \cref{tab:run2_offline_selection}, with the exception of the variable $\chi^2_{\text{FD}}$, which is absent in the Run 3 simulation samples and therefore not included in the offline selection. 
+
+Following the Upgrade I implementation of a new trigger system, the online selection has been modified. In Run 3, two dedicated HLT2 trigger lines, namely \texttt{Hlt2RD\_LbToLMuMu\_LL} and \texttt{Hlt2RD\_LbToLMuMu\_DD}, are employed for the LL and DD selection, effectively replacing the stripping procedure used in previous runs. In contrast, the HLT1 selection remains unchanged.
+
+\section{Multivariate Analysis}
+\label{sec:run3_mva}
+The MVA strategy outlined in \cref{sec:run2_mva} is also employed in the Run 3 analysis. However, the simulation samples are uncalibrated, and several input features available in Run 2 are absent in Run 3. The BDT features, ranked by their importance, are listed in the appendix, while \cref{tab:run3_mva_summary} summarizes the BDT characteristics and performance metrics.
+\begin{table}
+    \centering
+    \caption{Characteristics and performance metrics of the Run 3 BDTs. The cut value is determined using the same procedure as in Run 2.}
+    \label{tab:run3_mva_summary}
+    \sisetup{table-format=2.2}
+    \begin{tblr}{
+        colspec = {c c c c c c c},
+        column{1} = {c},
+    }
+        \toprule
+         & Trees & Depth & Learning Rate & ROC Score & Cut Value \\ 
+        \midrule
+        LL & $160$ & $3$ & $0.10$ & $0.979$ & $0.9$\\
+        DD & $170$ & $3$ & $0.12$ & $0.989$ & $0.9$\\
+        \bottomrule
+    \end{tblr}
+\end{table}
+
+To assess the quality of the uncalibrated Run 3 simulation, the distribution of $\log_{10}(p_{\text{T}}(\Lambda_b^0))$ for DD events is compared between the Run 3 simulation, the Run 2 simulation, and the sWeighted data in the $J/\psi$ mode in Run 3. Variables that were well-modeled in Run 2 also show good agreement with the sWeighted data in Run 3, whereas $p_{\text{T}}(\Lambda_b^0)$ is known to be mismodeled in the initial Run 2 simulation, as discussed in \cref{sec:run2_kinematic_corrections}. This motivates the comparison presented in \cref{fig:run3_feature_check}.
+\begin{figure}
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../plots/Run2_Run3_comparison/dd/log10_Lambdab_pT.pdf}
+        \caption{Comparison between the Run 2 calibrated (red) and uncalibrated (blue) simulation with the Run 3 simulation (black) for the DD category.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../plots/MC_Data_agreement/R3/dd/log10_Lambdab_pT.pdf}
+        \caption{Comparison between the Run 3 simulation (red) and sWeighted data (black) for the DD category.}
+    \end{subfigure}
+    
+    \caption{Comparison plots of the feature $\log_{10}(p_{\text{T}}(\Lambda_b^0))$ for the DD category. All plots are created using the $J/\psi$ mode.}
+    \label{fig:run3_feature_check}
+\end{figure}
+
+The uncalibrated Run 2 and Run 3 simulations exhibit similar distributions. In Run 2, the application of the kinematic correction shifts the distribution toward lower momenta, corresponding to the direction in which the Run 3 sWeighted data deviate relative to the Run 3 simulation. The comparison indicates that $p_{\text{T}}(\Lambda_b^0)$ remains mismodeled in the Run 3 simulation.
+
+The ROC score for the LL BDT is slightly worse compared to Run 2, whereas the DD BDT shows an improvement. The factors influencing the BDT performance include the non-optimized preselection in Run 3, which determines the initial signal-to-background distribution, the absence of simulation calibration, which is suboptimal for performance, and additional effects arising from the BDT tuning itself.
+
+\section{Invariant Mass Fits}
+\label{sec:run3_mass_fits}
+Following the offline, online, and BDT selections, fits to the invariant mass distributions of the $\Lambda_b^0$ baryon in the rare decay mode are performed as described in \cref{sec:run2_mass_fits}. The same selection strategy is applied to the $J/\psi$ mode, for which corresponding fits are also carried out. In the $J/\psi$ mode, the signal and combinatorial background are modeled in the same way as in the rare decay mode, while the misID background is described using a double-sided Crystal Ball function. The tail parameters for the signal and misID component are determined by fits on simulation. The mass fits are shown in \cref{fig:run3_mass_fits_combined}.
+\begin{figure}[htbp]
+    \centering
+    % Rare decay mode
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../plots/mass_fits/R3/RM_dd_channel_data.pdf}
+        \caption{Rare mode, DD}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../plots/mass_fits/R3/RM_ll_channel_data.pdf}
+        \caption{Rare mode, LL}
+    \end{subfigure}
+    
+    % J/psi mode
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../plots/mass_fits/R3/Jpsi_channel_BDTG_data_dd.pdf}
+        \caption{$J/\psi$ mode, DD}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../plots/mass_fits/R3/Jpsi_channel_BDTG_data_ll.pdf}
+        \caption{$J/\psi$ mode, LL}
+    \end{subfigure}
+
+    \caption{Fits to the invariant mass distribution of the $\Lambda_b^0$ baryon with the full rare mode selection applied, shown for DD (right) and LL (left) candidates in the rare (top) and $J/\psi$ mode (bottom).}
+    \label{fig:run3_mass_fits_combined}
+\end{figure}
+
+The signal yields obtained from the rare mode mass fits are $N = \num{99(11)}$ for the DD and $N = \num{132(13)}$ for the LL category. For the $J/\psi$ mode, the yields amount to $N = \num{3212(60)}$ for DD and $N = \num{5297(75)}$ for LL.
+
+\section{Signal Yield Comparison}
+\label{sec:run3_yield_comparison}
+\cref{sec:lhcb_upgrade_effects} describes the detector and trigger modifications introduced by Upgrade I that have the potential to influence the signal yield of the rare baryonic decay under investigation. The integrated luminosities differ between the two runs. Therefore, the Run 2 yield is scaled by the factor $\mathcal{L}_{\text{Run 3}}/\mathcal{L}_{\text{Run 2}}$ to allow for a meaningful comparison. \cref{tab:yield_comparison} shows an overview of the yields for both runs, as well as the scaled yields.
+\begin{table}
+    \centering
+    \caption{Comparison of the signal yields for the rare decay $\Lambda_b^0 \to \Lambda^0 \mu^+ \mu^-$ in Run 2 and Run 3. The Run 2 yields are additionally scaled by the factor $\mathcal{L}_{\text{Run 3}}/\mathcal{L}_{\text{Run 2}}$.}
+    \label{tab:yield_comparison}
+    \sisetup{table-format=2.2}
+    \begin{tblr}{
+        colspec = {c S S S S},
+        row{1} = {guard, mode = math}
+    }
+        \toprule
+        & N_{\text{Run 2}} & N_{\text{Run 3}} & N_{\text{Run 2, scaled}} & \frac{N_{\text{Run 2, scaled}} - N_{\text{Run 3}}}{N_{\text{Run 2, scaled}}} \\ 
+        \midrule
+        LL & \num{297(19)} & \num{132(13)} & \num{165(10)} & \qty{20(9)}{\percent}\\
+        DD & \num{409(23)} & \num{99(11)}  & \num{227(13)} & \qty{56(5)}{\percent}\\
+        \bottomrule
+    \end{tblr}
+\end{table}
+
+Several caveats must be considered when interpreting the reduction in signal yield in Run 3. First, the simulation used in Run 3 lacks calibration, which is suboptimal for the MVA, as the BDTs are trained on simulation samples intended to represent the signal. It is reasonable to expect that the BDT performance would improve with well-calibrated simulation samples, leading to higher signal efficiency, reduced background contamination, and consequently increased yields. Furthermore, the offline selection employed in this study remains unchanged from Run 2, with the $\chi^2_{\text{FD}}$ cut omitted. Optimizing the offline selection in Run 3 would not only improve its performance but could also benefit the BDT. It is noteworthy that the reduction in yield is more pronounced for the DD category. This can be understood in the context of \cref{eq:signal_yield}, where the integrated luminosity $\mathcal{L}$ and total efficiency $\epsilon$ vary between the two runs. While the effect of the integrated luminosity has been accounted for, variations in the total efficiency also influence the yield. The total efficiency accounts for all stages of the measurement process, including detector acceptance, trigger and reconstruction efficiencies, as well as the efficiencies associated with the analysis selection. This is particularly relevant for the DD candidates, as the new UT was still in the installation and commissioning phase during the Run 3 data-taking period used in this study. The UT plays a crucial role for DD events, providing tracking information upstream of the magnet that is needed for momentum reconstruction. In contrast, LL events are less affected by the UT, as their reconstruction benefits from VELO information.
+
+As a cross-check, the $J/\psi$ yields are also considered. The signal-yield ratio of LL-to-DD events is compared between Run 2 and Run 3 for both the rare and $J/\psi$ modes. Owing to the similarity of the two modes, the LL-to-DD ratios are expected to exhibit a comparable trend within each run. Since both Run 3 modes follow the same suboptimal selection procedure, they are subject to identical limitations inherent to the selection. The ratios are summarized in \cref{tab:ratios}.
+\begin{table}
+    \centering
+    \caption{Comparison of the signal-yield ratios of LL-to-DD events observed in the Run 2 and Run 3 rare and $J/\psi$ modes. The fits for the Run 2 $J/\psi$ mode used to determine the signal yields are shown in the appendix. They were conducted analogously to the Run 3 $J/\psi$ mass fits, as described in \cref{sec:run3_mass_fits}.}
+    \label{tab:ratios}
+    \sisetup{table-format=2.2}
+    \begin{tblr}{
+        colspec = {S S S S S},
+    }
+        \toprule
+        & \SetCell[c=2]{c}{{{Rare Mode}}} && \SetCell[c=2]{c} {{{$J/\psi$ Mode}}} & \\
+        \cmidrule[lr]{2-3} \cmidrule[lr]{4-5}
+        & \text{Run 2} & \text{Run 3} & \text{Run 2} & \text{Run 3} \\
+        \midrule
+        $\frac{N_{\text{LL}}}{N_{\text{DD}}}$ 
+        & \num{0.73(0.06)} 
+        & \num{1.33(0.20)} 
+        & \num{0.776(0.009)} 
+        & \num{1.65(0.04)} \\
+        \bottomrule
+    \end{tblr}
+\end{table}
+
+In Run 3, both the rare and $J/\psi$ modes exhibit a lower fraction of DD events relative to LL events, whereas in Run 2, the opposite trend was observed. This pattern is consistent with the hypothesis that the UT status during the considered data-taking period adversely affects DD signal reconstruction.
+
+\section{Future Improvements}
+\label{sec:run3_future_improvements}
+The presented studies remain open to further improvement, starting with the implementation of an optimized offline selection and the calibration of the simulation. As discussed in \cref{sec:run3_yield_comparison}, implementing these improvements could increase the measured yields in Run 3. Moreover, calibrated simulations would enable a more accurate evaluation of how well the simulation represents the data. To verify whether the yield reduction in Run 3 is not solely caused by the non-optimized selection, the total selection efficiency could be determined to estimate its impact. Furthermore, with Run 3 ongoing and the UT now operating stably, future analyses will benefit from increased statistics and provide the opportunity to test whether DD events show an increase relative to LL events, compared with the yields measured in 2024. In any case, the higher statistics will reduce statistical uncertainties and fluctuations, thereby improving the precision of the mass fits and, consequently, the accuracy of the signal yield measurements. Furthermore, as of 2025, downstream track reconstruction is included in HLT1, potentially improving signal selection at the earliest stage of the trigger.
+
+
+%Within the scope of this bachelor thesis, only a preliminary assessment of the impact of Upgrade I could be made by comparing the signal yields in both runs. However, since the yield is influenced by multiple factors, including trigger and reconstruction efficiencies, as well as the selection criteria and quality of the simulations, any conclusions regarding the underlying causes remain speculative. A detailed investigation of the individual contributions would be required to gain a deeper understanding of the challenges associated with analyzing Run 3 data.
+
+
